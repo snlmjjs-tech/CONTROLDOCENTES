@@ -743,4 +743,392 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
 <!-- ================= ADMIN ================= -->
 <div id="admin" hidden>
   <header class="a-top">
-   
+    <img id="aLogo" alt="">
+    <div class="ttl">Instituto Comercial<small>Control de permisos · Inspectoría</small></div>
+    <div class="sp"></div>
+    <div class="clk" id="aClock"></div>
+    <button class="btn sm" id="aExit">Volver al kiosco</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="tHoy" aria-selected="true">Hoy</button>
+    <button role="tab" data-tab="tHist" aria-selected="false">Historial</button>
+    <button role="tab" data-tab="tPer" aria-selected="false">Funcionarios</button>
+    <button role="tab" data-tab="tCfg" aria-selected="false">Configuración</button>
+  </nav>
+
+  <div class="wrap">
+    <section id="tHoy">
+      <div class="stats" id="stats"></div>
+      <div class="sec" style="margin-top:18px"><h2>Movimientos de hoy</h2><div id="hoyTbl"></div></div>
+    </section>
+
+    <section id="tHist" hidden>
+      <div class="sec">
+        <h2>Historial de permisos</h2>
+        <div class="row">
+          <div class="fld"><label for="hMes">Mes</label><input class="in" type="month" id="hMes"></div>
+          <div class="fld"><label for="hQ">Buscar</label><input class="in" id="hQ" placeholder="Nombre o RUT"></div>
+          <div class="fld"><label for="hMot">Motivo</label><select class="in" id="hMot"><option value="">Todos</option><option value="personal">Personal</option><option value="cometido">Cometido laboral</option><option value="gremial">Horas gremiales</option></select></div>
+          <button class="btn pri" id="hXls">Exportar Excel</button>
+        </div>
+        <div id="histTbl"></div>
+      </div>
+    </section>
+
+    <section id="tPer" hidden>
+      <div class="sec">
+        <h2>Agregar funcionario</h2>
+        <form class="row" id="fAdd">
+          <div class="fld"><label for="fRut">RUT</label><input class="in" id="fRut" required placeholder="12345678-9"></div>
+          <div class="fld"><label for="fNom">Nombre completo</label><input class="in" id="fNom" required></div>
+          <div class="fld"><label for="fCar">Cargo</label><input class="in" id="fCar" placeholder="Docente"></div>
+          <div class="fld"><label for="fAre">Área</label><input class="in" id="fAre"></div>
+          <button class="btn pri">Guardar</button>
+        </form>
+        <div class="note" id="fMsg" hidden></div>
+        <div class="drop" id="drop">Arrastre aquí un Excel o CSV con columnas <code>RUT</code>, <code>Nombre</code>, <code>Cargo</code>, <code>Área</code> o <label style="text-decoration:underline;cursor:pointer">elija un archivo<input type="file" id="fFile" accept=".xlsx,.xls,.csv" hidden></label></div>
+      </div>
+      <div class="sec" style="margin-top:18px"><h2>Funcionarios registrados</h2><div id="perTbl"></div></div>
+    </section>
+
+    <section id="tCfg" hidden>
+      <div class="sec">
+        <h2>Parámetros</h2>
+        <div class="row">
+          <div class="fld"><label for="cLim">Tiempo mensual autorizado (horas)</label><input class="in" id="cLim" type="number" min="0" step="0.5"></div>
+          <div class="fld"><label for="cPin">Clave de Inspectoría</label><input class="in" id="cPin" type="text" autocomplete="off"></div>
+        </div>
+        <div class="fld"><label for="cAut">Personas que autorizan (una por línea)</label><textarea class="in" id="cAut"></textarea></div>
+        <div class="row"><button class="btn pri" id="cSave">Guardar parámetros</button></div>
+        <div class="note" id="cMsg" hidden></div>
+      </div>
+      <div class="sec" style="margin-top:18px">
+        <h2>Respaldo de datos</h2>
+        <p class="hint">Los datos se guardan solo en este navegador. Descargue un respaldo con regularidad.</p>
+        <div class="row">
+          <button class="btn" id="bBackup">Descargar respaldo</button>
+          <label class="btn">Restaurar respaldo<input type="file" id="bRestore" accept=".json" hidden></label>
+          <button class="btn danger" id="bWipe">Borrar todos los permisos</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
+var MOT={personal:"Personal",cometido:"Cometido laboral",gremial:"Horas gremiales"};
+var PILL={personal:"p-per",cometido:"p-com",gremial:"p-gre"};
+
+/* ---------- Almacenamiento (IndexedDB, con respaldo en memoria) ---------- */
+var db=null,seq=1,mem={staff:new Map(),perms:new Map(),meta:new Map()};
+var KP={staff:"rut",perms:"id",meta:"k"};
+function openDb(){return new Promise(function(res){
+  var done=false,fin=function(v){if(!done){done=true;res(v)}};
+  try{
+    var r=indexedDB.open("incosaf_permisos",1);
+    r.onupgradeneeded=function(){var d=r.result;d.createObjectStore("staff",{keyPath:"rut"});d.createObjectStore("perms",{keyPath:"id",autoIncrement:true});d.createObjectStore("meta",{keyPath:"k"})};
+    r.onsuccess=function(){db=r.result;fin(true)};
+    r.onerror=r.onblocked=function(){fin(false)};
+    setTimeout(function(){fin(false)},3000);
+  }catch(e){fin(false)}
+})}
+function tx(s,m,fn){return new Promise(function(ok,ko){var t=db.transaction(s,m),r=fn(t.objectStore(s));t.oncomplete=function(){ok(r&&r.result)};t.onerror=t.onabort=function(){ko(t.error)}})}
+var S={
+  all:function(s){return db?tx(s,"readonly",function(o){return o.getAll()}):Promise.resolve(Array.from(mem[s].values()))},
+  get:function(s,k){return db?tx(s,"readonly",function(o){return o.get(k)}):Promise.resolve(mem[s].get(k))},
+  put:function(s,v){
+    if(db)return tx(s,"readwrite",function(o){return o.put(v)}).then(function(k){if(s==="perms")v.id=k;return v});
+    if(s==="perms"&&v.id==null)v.id=seq++;
+    mem[s].set(v[KP[s]],v);return Promise.resolve(v)},
+  del:function(s,k){if(db)return tx(s,"readwrite",function(o){return o.delete(k)});mem[s].delete(k);return Promise.resolve()},
+  clear:function(s){if(db)return tx(s,"readwrite",function(o){return o.clear()});mem[s].clear();return Promise.resolve()}
+};
+var CFG={k:"cfg",pin:"1234",limit:360,auth:["Director","Inspector General","Jefe UTP"]};
+function loadCfg(){return S.get("meta","cfg").then(function(c){if(c)Object.assign(CFG,c)})}
+
+/* ---------- Utilidades ---------- */
+var pad2=function(n){return String(n).padStart(2,"0")};
+var fT=function(t){var d=new Date(t);return pad2(d.getHours())+":"+pad2(d.getMinutes())};
+var fD=function(t){var d=new Date(t);return pad2(d.getDate())+"-"+pad2(d.getMonth()+1)+"-"+d.getFullYear()};
+var fM=function(m){return Math.floor(m/60)+"h "+pad2(m%60)+"m"};
+var mKey=function(t){var d=new Date(t);return d.getFullYear()*12+d.getMonth()};
+var dKey=function(t){var d=new Date(t);return d.getFullYear()*372+d.getMonth()*31+d.getDate()};
+var dur=function(p){return Math.max(0,Math.round(((p.in||Date.now())-p.out)/60000))};
+var cap=function(s){return s.charAt(0).toUpperCase()+s.slice(1)};
+function cleanRut(s){return String(s||"").toUpperCase().replace(/[^0-9K]/g,"")}
+function fmtRut(c){c=cleanRut(c);if(c.length<2)return c;var b=c.slice(0,-1).replace(/\B(?=(\d{3})+(?!\d))/g,".");return b+"-"+c.slice(-1)}
+function rutOk(c){c=cleanRut(c);if(c.length<2||c.length>9)return false;var b=c.slice(0,-1);if(/\D/.test(b))return false;var sum=0,m=2;for(var i=b.length-1;i>=0;i--){sum+=+b[i]*m;m=m===7?2:m+1}var r=11-sum%11,dv=r===11?"0":r===10?"K":String(r);return dv===c.slice(-1)}
+function download(name,blob){var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500)}
+function armBtn(b,fn){var t;b.addEventListener("click",function(){if(b.classList.contains("arm")){clearTimeout(t);b.classList.remove("arm");b.textContent=b.dataset.t;fn()}else{b.dataset.t=b.textContent;b.classList.add("arm");b.textContent="¿Confirmar?";t=setTimeout(function(){b.classList.remove("arm");b.textContent=b.dataset.t},4000)}})}
+function usedMin(perms,rut,ref){var k=mKey(ref||Date.now());return perms.filter(function(p){return p.rut===rut&&p.motivo!=="gremial"&&mKey(p.out)===k}).reduce(function(a,p){return a+dur(p)},0)}
+var limMin=function(){return Math.round(CFG.limit*60)};
+
+/* ---------- Reloj ---------- */
+function tick(){
+  var d=new Date();
+  $("kClock").innerHTML=pad2(d.getHours())+":"+pad2(d.getMinutes())+'<span class="ss">'+pad2(d.getSeconds())+"</span>";
+  $("kDate").textContent=cap(d.toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long",year:"numeric"}));
+  $("aClock").textContent=pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds());
+}
+
+/* ---------- Kiosco ---------- */
+var STEPS=["stRut","stMotivo","stRegreso","stNuevo","stDone"];
+var rut="",cur=null,curOpen=null,motivo=null,unlockedBy=null,idle=null,doneT=null;
+function show(id){
+  STEPS.forEach(function(s){$(s).hidden=s!==id});
+  clearTimeout(idle);clearTimeout(doneT);
+  if(id!=="stRut")idle=setTimeout(reset,90000);
+}
+function reset(){rut="";cur=null;curOpen=null;motivo=null;unlockedBy=null;$("kMsg").textContent="";$("bNuevoK").hidden=true;$("rutBox").classList.remove("err");drawRut();show("stRut")}
+function drawRut(){$("rutShow").innerHTML=rut?esc(fmtRut(rut)):'<span class="ph">12.345.678-9</span>'}
+function press(k){
+  var m=$("kMsg");
+  if(k==="DEL"){rut=rut.slice(0,-1)}
+  else if(k==="OK"){return submitRut()}
+  else if(rut.length<9){if(k==="K"&&rut.length<7)return;rut+=k}
+  m.textContent="";$("bNuevoK").hidden=true;$("rutBox").classList.remove("err");drawRut();
+}
+function submitRut(){
+  var m=$("kMsg");
+  if(!rutOk(rut)){m.textContent="RUT inválido. Revise el número y el dígito verificador.";$("rutBox").classList.add("err");return}
+  S.get("staff",rut).then(function(p){
+    if(!p){m.textContent="RUT no registrado en el sistema.";$("bNuevoK").hidden=false;return}
+    cur=p;return S.all("perms").then(function(ps){
+      curOpen=ps.filter(function(x){return x.rut===p.rut&&!x.in}).pop()||null;
+      if(curOpen)showRegreso();else showMotivo(ps);
+    });
+  });
+}
+function showRegreso(){
+  $("rNombre").textContent=cur.nombre;$("rCargo").textContent=[cur.cargo,cur.area].filter(Boolean).join(" · ");
+  $("rInfo").textContent=MOT[curOpen.motivo]+" · salió a las "+fT(curOpen.out)+(curOpen.destino?" · "+curOpen.destino:"");
+  show("stRegreso");
+}
+function showMotivo(ps){
+  motivo=null;
+  $("pNombre").textContent=cur.nombre;$("pCargo").textContent=[cur.cargo,cur.area].filter(Boolean).join(" · ");
+  var u=usedMin(ps,cur.rut),l=limMin(),full=u>=l&&!unlockedBy,pc=l?Math.min(100,Math.round(u/l*100)):100;
+  $("pSaldo").className="saldo-k"+(u>=l?" full":"");
+  $("pSaldo").innerHTML='<span>Tiempo utilizado este mes</span><span class="big">'+fM(u)+" / "+fM(l)+'</span><div class="bar"><i style="width:'+pc+'%"></i></div>';
+  $("pBlock").hidden=!full;
+  $("pBlockTxt").textContent="Ya utilizó el tiempo autorizado del mes. Puede descargar el permiso administrativo o pedir el desbloqueo a quien autoriza.";
+  $("pBlockMsg").textContent="";
+  document.querySelectorAll(".mbtn").forEach(function(b){b.setAttribute("aria-pressed","false");b.disabled=full&&b.dataset.m!=="gremial"});
+  $("greNote").hidden=true;$("comFields").hidden=true;$("kDetalle").value="";
+  ["cDestino","cTarea","cVuelta"].forEach(function(i){$(i).value=""});
+  $("bSalida").disabled=true;show("stMotivo");
+}
+function canSalida(){
+  if(!motivo)return false;
+  if(motivo==="cometido")return $("cDestino").value.trim()&&$("cTarea").value.trim();
+  return true;
+}
+function done(title,hora,text,exc,pdf){
+  $("dTitle").textContent=title;$("dHora").textContent=hora;$("dText").textContent=text;
+  $("dExc").hidden=!exc;$("dPdf").hidden=!pdf;$("bFin").hidden=!pdf;$("dPdfMsg").textContent="";
+  show("stDone");
+  if(!pdf)doneT=setTimeout(reset,exc?9000:5000);
+}
+var lastPerm=null;
+function doSalida(){
+  var p={rut:cur.rut,nombre:cur.nombre,cargo:cur.cargo||"",area:cur.area||"",motivo:motivo,detalle:$("kDetalle").value.trim(),out:Date.now(),in:null,exc:false,auth:unlockedBy||""};
+  if(motivo==="cometido"){p.destino=$("cDestino").value.trim();p.tarea=$("cTarea").value.trim();p.vuelta=$("cVuelta").value}
+  S.put("perms",p).then(function(){
+    lastPerm=p;
+    done("Salida registrada",fT(p.out),cur.nombre+" · "+MOT[motivo],false,motivo==="cometido");
+  });
+}
+function doRegreso(){
+  curOpen.in=Date.now();
+  S.put("perms",curOpen).then(function(){return S.all("perms")}).then(function(ps){
+    var exc=curOpen.motivo!=="gremial"&&usedMin(ps,cur.rut,curOpen.out)>limMin();
+    if(exc){curOpen.exc=true;return S.put("perms",curOpen).then(function(){return exc})}
+    return exc;
+  }).then(function(exc){
+    done("Regreso registrado",fT(curOpen.in),cur.nombre+" · duración "+fM(dur(curOpen)),exc,false);
+  });
+}
+
+/* ---------- PDF ---------- */
+function mkPdf(title,rows,file,note){
+  var J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw new Error("jsPDF no disponible");
+  var d=new J(),y=24;
+  d.setFont("helvetica","bold");d.setFontSize(11);d.text("INSTITUTO COMERCIAL ALBERTO VALENZUELA LLANOS · SAN FERNANDO",105,y,{align:"center"});
+  y+=12;d.setFontSize(15);d.text(title,105,y,{align:"center"});y+=16;
+  d.setFontSize(11);
+  rows.forEach(function(r){d.setFont("helvetica","bold");d.text(r[0]+":",20,y);d.setFont("helvetica","normal");
+    var lines=d.splitTextToSize(String(r[1]||"-"),125);d.text(lines,65,y);y+=7*lines.length+3});
+  if(note){y+=4;d.setFont("helvetica","italic");d.splitTextToSize(note,170).forEach(function(l){d.text(l,20,y);y+=6})}
+  y=Math.max(y+40,230);d.setFont("helvetica","normal");
+  d.line(25,y,85,y);d.line(125,y,185,y);d.text("Funcionario(a)",55,y+6,{align:"center"});d.text("Director(a)",155,y+6,{align:"center"});
+  d.save(file);
+}
+function pdfCometido(p){
+  mkPdf("SOLICITUD DE COMETIDO LABORAL",[["Fecha",fD(p.out)],["Funcionario(a)",p.nombre],["RUT",fmtRut(p.rut)],["Cargo",p.cargo],["Hora de salida",fT(p.out)],["Regreso estimado",p.vuelta],["Destino",p.destino],["Objetivo",p.tarea],["Detalle",p.detalle]],"cometido_"+p.rut+"_"+fD(p.out)+".pdf");
+}
+function pdfAdmin(person){
+  var now=Date.now();
+  mkPdf("SOLICITUD DE PERMISO ADMINISTRATIVO",[["Fecha",fD(now)],["Funcionario(a)",person.nombre],["RUT",fmtRut(person.rut)],["Cargo",person.cargo],["Motivo de la solicitud","Tiempo mensual de control interno agotado"],["Detalle",""]],"permiso_administrativo_"+person.rut+".pdf","Solicitud para su autorización por Dirección.");
+}
+
+/* ---------- Modal PIN ---------- */
+var pinCb=null,pinMode=null;
+function openPin(mode,cb,title,text){
+  pinMode=mode;pinCb=cb;$("pinTitle").textContent=title||"Acceso Inspectoría";
+  $("pinText").hidden=!text;$("pinText").textContent=text||"";
+  $("pinIn").value="";$("pinErr").hidden=true;
+  var w=mode==="unlock";$("pinWhoF").hidden=!w;
+  if(w)$("pinWho").innerHTML=CFG.auth.map(function(a){return "<option>"+esc(a)+"</option>"}).join("");
+  $("pinModal").hidden=false;setTimeout(function(){$("pinIn").focus()},30);
+}
+function closePin(){$("pinModal").hidden=true;pinCb=null}
+
+/* ---------- Administración ---------- */
+var tab="tHoy";
+function setTab(t){tab=t;document.querySelectorAll(".tabs button").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.tab===t))});["tHoy","tHist","tPer","tCfg"].forEach(function(x){$(x).hidden=x!==t});renderAdmin()}
+function pill(p){return '<span class="pill '+PILL[p.motivo]+'">'+MOT[p.motivo]+"</span>"}
+function permRow(p,act){
+  return "<tr><td>"+esc(p.nombre)+"<br><small>"+esc(fmtRut(p.rut))+"</small></td><td>"+pill(p)+"</td><td class=num>"+fD(p.out)+" "+fT(p.out)+"</td><td class=num>"+(p.in?fT(p.in):'<span class="pill p-out">Fuera</span>')+"</td><td class=num>"+fM(dur(p))+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.exc?' <span class="pill p-exc">Excede</span>':"")+(p.auth?" <small>(autoriza: "+esc(p.auth)+")</small>":"")+"</td>"+(act?"<td>"+(p.in?"":'<button class="btn sm" data-close="'+p.id+'">Cerrar</button> ')+'<button class="btn sm danger" data-del="'+p.id+'">Eliminar</button></td>':"")+"</tr>";
+}
+function table(head,rows,act){
+  if(!rows.length)return '<div class="empty">Sin registros.</div>';
+  return '<div class="tbl-wrap"><table><thead><tr>'+head.map(function(h){return "<th>"+h+"</th>"}).join("")+(act?"<th></th>":"")+"</tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
+}
+var PH=["Funcionario","Motivo","Salida","Regreso","Duración","Detalle"];
+function bindRows(root){
+  root.querySelectorAll("[data-close]").forEach(function(b){b.onclick=function(){S.get("perms",+b.dataset.close).then(function(p){p.in=Date.now();return S.put("perms",p)}).then(renderAdmin)}});
+  root.querySelectorAll("[data-del]").forEach(function(b){armBtn(b,function(){S.del("perms",+b.dataset.del).then(renderAdmin)})});
+}
+function histFiltered(ps){
+  var m=$("hMes").value,q=$("hQ").value.trim().toLowerCase(),mo=$("hMot").value;
+  return ps.filter(function(p){
+    if(m){var d=new Date(p.out);if(d.getFullYear()+"-"+pad2(d.getMonth()+1)!==m)return false}
+    if(mo&&p.motivo!==mo)return false;
+    if(q&&(p.nombre+" "+p.rut).toLowerCase().indexOf(q)<0)return false;
+    return true}).sort(function(a,b){return b.out-a.out});
+}
+function renderAdmin(){
+  Promise.all([S.all("perms"),S.all("staff")]).then(function(r){
+    var ps=r[0],st=r[1],td=dKey(Date.now());
+    if(tab==="tHoy"){
+      var h=ps.filter(function(p){return dKey(p.out)===td||!p.in}).sort(function(a,b){return b.out-a.out});
+      var st5=[["Salidas hoy",h.length],["Fuera ahora",h.filter(function(p){return !p.in}).length],["Cometidos",h.filter(function(p){return p.motivo==="cometido"}).length],["Horas gremiales",h.filter(function(p){return p.motivo==="gremial"}).length],["Excedidos",h.filter(function(p){return p.exc}).length]];
+      $("stats").innerHTML=st5.map(function(s,i){return '<div class="stat'+(i===4&&s[1]?" hot":"")+'"><div class="l">'+s[0]+'</div><div class="v">'+s[1]+"</div></div>"}).join("");
+      $("hoyTbl").innerHTML=table(PH,h.map(function(p){return permRow(p,true)}),true);bindRows($("hoyTbl"));
+    }else if(tab==="tHist"){
+      if(!$("hMes").value){var n=new Date();$("hMes").value=n.getFullYear()+"-"+pad2(n.getMonth()+1)}
+      var f=histFiltered(ps);
+      $("histTbl").innerHTML=table(PH,f.map(function(p){return permRow(p,true)}),true);bindRows($("histTbl"));
+    }else if(tab==="tPer"){
+      var l=limMin();
+      $("perTbl").innerHTML=table(["RUT","Nombre","Cargo","Área","Uso del mes",""],st.sort(function(a,b){return a.nombre.localeCompare(b.nombre,"es")}).map(function(p){
+        var u=usedMin(ps,p.rut),pc=l?Math.min(100,Math.round(u/l*100)):100;
+        return "<tr><td class=num>"+esc(fmtRut(p.rut))+"</td><td>"+esc(p.nombre)+"</td><td>"+esc(p.cargo)+"</td><td>"+esc(p.area)+'</td><td><span class="meter'+(u>=l?" full":"")+'"><i style="width:'+pc+'%"></i></span> '+fM(u)+'</td><td><button class="btn sm danger" data-rm="'+esc(p.rut)+'">Quitar</button></td></tr>'}),false);
+      $("perTbl").querySelectorAll("[data-rm]").forEach(function(b){armBtn(b,function(){S.del("staff",b.dataset.rm).then(renderAdmin)})});
+    }
+  });
+}
+function note(el,t,cls){el.hidden=false;el.className="note "+(cls||"");el.textContent=t}
+function addStaff(r){
+  var c=cleanRut(r.rut);if(!rutOk(c)||!String(r.nombre||"").trim())return Promise.resolve(false);
+  return S.put("staff",{rut:c,nombre:String(r.nombre).trim(),cargo:String(r.cargo||"").trim(),area:String(r.area||"").trim()}).then(function(){return true});
+}
+function importFile(file){
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var wb=XLSX.read(rd.result,{type:"array"}),rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
+      var get=function(r,names){for(var k in r){var kk=k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();if(names.indexOf(kk)>=0)return r[k]}return ""};
+      var ok=0,bad=0;
+      Promise.all(rows.map(function(r){return addStaff({rut:get(r,["rut","run"]),nombre:get(r,["nombre","nombre completo","funcionario"]),cargo:get(r,["cargo"]),area:get(r,["area","departamento","especialidad"])}).then(function(v){v?ok++:bad++})})).then(function(){
+        note($("fMsg"),ok+" funcionarios importados"+(bad?"; "+bad+" filas omitidas (RUT inválido o sin nombre).":"."),bad?"":"ok");renderAdmin()});
+    }catch(e){note($("fMsg"),"No se pudo leer el archivo.","bad")}
+  };
+  rd.readAsArrayBuffer(file);
+}
+function exportXls(){
+  S.all("perms").then(function(ps){
+    var f=histFiltered(ps).map(function(p){return {RUT:fmtRut(p.rut),Nombre:p.nombre,Cargo:p.cargo,Motivo:MOT[p.motivo],Fecha:fD(p.out),Salida:fT(p.out),Regreso:p.in?fT(p.in):"",Minutos:dur(p),Destino:p.destino||"",Detalle:p.tarea||p.detalle||"",Excede:p.exc?"Sí":"",Autoriza:p.auth||""}});
+    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(f),"Permisos");
+    XLSX.writeFile(wb,"permisos_"+($("hMes").value||"todos")+".xlsx");
+  });
+}
+function loadCfgForm(){$("cLim").value=CFG.limit;$("cPin").value=CFG.pin;$("cAut").value=CFG.auth.join("\n")}
+
+/* ---------- Eventos ---------- */
+function bind(){
+  $("pad").addEventListener("click",function(e){var b=e.target.closest("button");if(b)press(b.dataset.k)});
+  $("rutBox").addEventListener("click",function(){$("rutHidden").focus()});
+  document.addEventListener("keydown",function(e){
+    if(!$("pinModal").hidden||$("stRut").hidden||!$("admin").hidden||e.ctrlKey||e.metaKey||e.altKey)return;
+    var t=e.target;if(t!==$("rutHidden")&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))return;
+    if(/^[0-9]$/.test(e.key)){press(e.key);e.preventDefault()}
+    else if(e.key==="k"||e.key==="K"){press("K");e.preventDefault()}
+    else if(e.key==="Backspace"){press("DEL");e.preventDefault()}
+    else if(e.key==="Enter"){press("OK");e.preventDefault()}
+    else if(e.key==="Escape")reset();
+  });
+  document.querySelectorAll(".mbtn").forEach(function(b){b.addEventListener("click",function(){
+    if(b.disabled)return;motivo=b.dataset.m;
+    document.querySelectorAll(".mbtn").forEach(function(x){x.setAttribute("aria-pressed",String(x===b))});
+    $("comFields").hidden=motivo!=="cometido";$("greNote").hidden=motivo!=="gremial";$("bSalida").disabled=!canSalida();
+  })});
+  ["cDestino","cTarea"].forEach(function(i){$(i).addEventListener("input",function(){$("bSalida").disabled=!canSalida()})});
+  $("bSalida").onclick=doSalida;$("bRegreso").onclick=doRegreso;
+  $("bCancel1").onclick=$("bCancel2").onclick=$("bFin").onclick=reset;
+  $("bPdfK").onclick=function(){try{pdfCometido(lastPerm)}catch(e){$("dPdfMsg").textContent="No se pudo generar el PDF."}};
+  $("bPdfAdmK").onclick=function(){try{pdfAdmin(cur)}catch(e){$("pBlockMsg").textContent="No se pudo generar el PDF."}};
+  $("bFirmaK").onclick=function(){openPin("unlock",function(who){unlockedBy=who;S.all("perms").then(showMotivo)},"Desbloqueo autorizado","Ingrese la clave de quien autoriza el permiso.")};
+  $("bNuevoK").onclick=function(){openPin("nuevo",function(){
+    $("nRut").value=fmtRut(rut);["nCargo","nNombre","nArea"].forEach(function(i){$(i).value=""});$("nMsg").textContent="";show("stNuevo")},"Nuevo funcionario","Requiere la clave de Inspectoría.")};
+  $("bCancelN").onclick=reset;
+  $("stNuevo").addEventListener("submit",function(e){e.preventDefault();
+    var n=$("nNombre").value.trim();if(!n){$("nMsg").textContent="Ingrese el nombre completo.";return}
+    addStaff({rut:rut,nombre:n,cargo:$("nCargo").value||"Docente",area:$("nArea").value}).then(function(){return S.get("staff",cleanRut(rut))}).then(function(p){cur=p;curOpen=null;return S.all("perms")}).then(showMotivo)});
+  $("bFull").onclick=function(){var d=document;if(d.fullscreenElement)d.exitFullscreen();else if(d.documentElement.requestFullscreen)d.documentElement.requestFullscreen()};
+  $("bAdmin").onclick=function(){openPin("admin",function(){$("kiosk").hidden=true;$("admin").hidden=false;loadCfgForm();setTab("tHoy")})};
+  $("aExit").onclick=function(){$("admin").hidden=true;$("kiosk").hidden=false;reset()};
+  $("pinCancel").onclick=closePin;
+  $("pinForm").addEventListener("submit",function(e){e.preventDefault();
+    if($("pinIn").value!==CFG.pin){$("pinErr").hidden=false;return}
+    var cb=pinCb,who=$("pinWho").value;closePin();if(cb)cb(who)});
+  document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});
+  ["hMes","hQ","hMot"].forEach(function(i){$(i).addEventListener("input",renderAdmin)});
+  $("hXls").onclick=exportXls;
+  $("fAdd").addEventListener("submit",function(e){e.preventDefault();
+    addStaff({rut:$("fRut").value,nombre:$("fNom").value,cargo:$("fCar").value,area:$("fAre").value}).then(function(ok){
+      if(ok){note($("fMsg"),"Funcionario guardado.","ok");$("fAdd").reset();renderAdmin()}else note($("fMsg"),"RUT inválido o nombre vacío.","bad")})});
+  $("fFile").onchange=function(){if(this.files[0])importFile(this.files[0]);this.value=""};
+  var dr=$("drop");
+  dr.addEventListener("dragover",function(e){e.preventDefault();dr.classList.add("over")});
+  dr.addEventListener("dragleave",function(){dr.classList.remove("over")});
+  dr.addEventListener("drop",function(e){e.preventDefault();dr.classList.remove("over");if(e.dataTransfer.files[0])importFile(e.dataTransfer.files[0])});
+  $("cSave").onclick=function(){
+    var pin=$("cPin").value.trim(),lim=parseFloat($("cLim").value);
+    if(!pin||!(lim>=0)){note($("cMsg"),"Revise la clave y las horas.","bad");return}
+    CFG.pin=pin;CFG.limit=lim;CFG.auth=$("cAut").value.split("\n").map(function(s){return s.trim()}).filter(Boolean);
+    S.put("meta",CFG).then(function(){note($("cMsg"),"Parámetros guardados.","ok")})};
+  $("bBackup").onclick=function(){Promise.all([S.all("staff"),S.all("perms")]).then(function(r){download("respaldo_permisos_"+fD(Date.now())+".json",new Blob([JSON.stringify({staff:r[0],perms:r[1],cfg:CFG})],{type:"application/json"}))})};
+  $("bRestore").onchange=function(){var f=this.files[0];this.value="";if(!f)return;
+    f.text().then(function(t){var d=JSON.parse(t);return S.clear("staff").then(function(){return S.clear("perms")}).then(function(){return Promise.all((d.staff||[]).map(function(x){return S.put("staff",x)}).concat((d.perms||[]).map(function(x){return S.put("perms",x)})))}).then(function(){if(d.cfg){Object.assign(CFG,d.cfg);return S.put("meta",CFG)}}).then(function(){loadCfgForm();renderAdmin();note($("cMsg"),"Respaldo restaurado.","ok")})}).catch(function(){note($("cMsg"),"Archivo de respaldo inválido.","bad")})};
+  armBtn($("bWipe"),function(){S.clear("perms").then(function(){note($("cMsg"),"Permisos borrados.","ok")})});
+}
+
+/* ---------- Inicio ---------- */
+$("aLogo").src=document.querySelector(".k-badge").src;
+bind();tick();setInterval(tick,1000);drawRut();
+openDb().then(function(ok){
+  $("noDb").hidden=ok;
+  $("dbDot").className="dot "+(ok?"on":"off");
+  $("dbTxt").textContent=ok?"Guardado en este equipo":"Sin conexión (los datos no se guardan)";
+  return loadCfg();
+}).catch(function(){});
+})();
+</script>
+</body>
+</html>
