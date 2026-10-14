@@ -733,10 +733,22 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
   <form class="mcard" id="pinForm">
     <h3 id="pinTitle">Acceso Inspectoría</h3>
     <p id="pinText" style="margin:0;color:var(--muted)" hidden></p>
-    <div class="fld"><label for="pinIn">Clave de administración</label><input class="in" id="pinIn" type="password" autocomplete="off" autocapitalize="characters"></div>
-    <div class="fld" id="pinWhoF" hidden><label for="pinWho">Autoriza</label><select class="in" id="pinWho"></select></div>
-    <div class="note bad" id="pinErr" hidden>Clave incorrecta.</div>
+    <div class="fld"><label for="pinEm">Correo institucional</label><input class="in" id="pinEm" type="email" autocomplete="username" required></div>
+    <div class="fld"><label for="pinIn">Contraseña</label><input class="in" id="pinIn" type="password" autocomplete="current-password" required></div>
+    <div class="note bad" id="pinErr" hidden></div>
     <div class="row"><button type="button" class="btn" id="pinCancel">Cancelar</button><button class="btn pri" id="pinOk">Entrar</button></div>
+  </form>
+</div>
+
+<!-- ================= SESIÓN KIOSCO ================= -->
+<div class="modal" id="kioModal" hidden>
+  <form class="mcard" id="kioForm">
+    <h3>Sesión del kiosco</h3>
+    <p style="margin:0;color:var(--muted)">Cuenta del computador del kiosco, creada por Inspectoría.</p>
+    <div class="fld"><label for="kEm">Correo</label><input class="in" id="kEm" type="email" autocomplete="username" required></div>
+    <div class="fld"><label for="kPw">Contraseña</label><input class="in" id="kPw" type="password" autocomplete="current-password" required></div>
+    <div class="note bad" id="kErr" hidden></div>
+    <div class="row"><button class="btn pri">Entrar</button></div>
   </form>
 </div>
 
@@ -744,16 +756,17 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
 <div id="admin" hidden>
   <header class="a-top">
     <img id="aLogo" alt="">
-    <div class="ttl">Instituto Comercial<small>Control de permisos · Inspectoría</small></div>
+    <div class="ttl">Instituto Comercial<small id="aWho">Control de permisos · Inspectoría</small></div>
     <div class="sp"></div>
     <div class="clk" id="aClock"></div>
-    <button class="btn sm" id="aExit">Volver al kiosco</button>
+    <button class="btn sm" id="aExit">Cerrar sesión</button>
   </header>
 
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="tHoy" aria-selected="true">Hoy</button>
     <button role="tab" data-tab="tHist" aria-selected="false">Historial</button>
     <button role="tab" data-tab="tPer" aria-selected="false">Funcionarios</button>
+    <button role="tab" data-tab="tAud" aria-selected="false">Auditoría</button>
     <button role="tab" data-tab="tCfg" aria-selected="false">Configuración</button>
   </nav>
 
@@ -780,7 +793,7 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
       <div class="sec">
         <h2>Agregar funcionario</h2>
         <form class="row" id="fAdd">
-          <div class="fld"><label for="fRut">RUT</label><input class="in" id="fRut" required placeholder="12345678-9"></div>
+          <div class="fld"><label for="fRut">RUT</label><input class="in" id="fRut" required placeholder="12345678-5"></div>
           <div class="fld"><label for="fNom">Nombre completo</label><input class="in" id="fNom" required></div>
           <div class="fld"><label for="fCar">Cargo</label><input class="in" id="fCar" placeholder="Docente"></div>
           <div class="fld"><label for="fAre">Área</label><input class="in" id="fAre"></div>
@@ -792,72 +805,57 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
       <div class="sec" style="margin-top:18px"><h2>Funcionarios registrados</h2><div id="perTbl"></div></div>
     </section>
 
+    <section id="tAud" hidden>
+      <div class="sec">
+        <h2>Bitácora de auditoría</h2>
+        <p class="hint">Registro automático de cada alta, cambio o eliminación, con el usuario y la hora. No se puede editar desde la aplicación. Se muestran los últimos 300 movimientos.</p>
+        <div id="audTbl"></div>
+      </div>
+    </section>
+
     <section id="tCfg" hidden>
       <div class="sec">
         <h2>Parámetros</h2>
         <div class="row">
           <div class="fld"><label for="cLim">Tiempo mensual autorizado (horas)</label><input class="in" id="cLim" type="number" min="0" step="0.5"></div>
-          <div class="fld"><label for="cPin">Clave de Inspectoría</label><input class="in" id="cPin" type="text" autocomplete="off"></div>
+          <button class="btn pri" id="cSave">Guardar</button>
         </div>
-        <div class="fld"><label for="cAut">Personas que autorizan (una por línea)</label><textarea class="in" id="cAut"></textarea></div>
-        <div class="row"><button class="btn pri" id="cSave">Guardar parámetros</button></div>
         <div class="note" id="cMsg" hidden></div>
       </div>
       <div class="sec" style="margin-top:18px">
         <h2>Respaldo de datos</h2>
-        <p class="hint">Los datos se guardan solo en este navegador. Descargue un respaldo con regularidad.</p>
-        <div class="row">
-          <button class="btn" id="bBackup">Descargar respaldo</button>
-          <label class="btn">Restaurar respaldo<input type="file" id="bRestore" accept=".json" hidden></label>
-          <button class="btn danger" id="bWipe">Borrar todos los permisos</button>
-        </div>
+        <p class="hint">Los datos están en Supabase (nube). Puede descargar una copia en JSON cuando quiera.</p>
+        <div class="row"><button class="btn" id="bBackup">Descargar respaldo</button></div>
       </div>
     </section>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 (function(){
 "use strict";
+
+/* ====== CONFIGURACIÓN SUPABASE (Project Settings > API) ====== */
+var SUPABASE_URL="https://TU-PROYECTO.supabase.co";
+var SUPABASE_KEY="TU-CLAVE-ANON-PUBLICA";
+/* La clave "anon" es pública por diseño: la seguridad la dan las políticas RLS de supabase/schema.sql. */
+
 var $=function(id){return document.getElementById(id)};
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
 var MOT={personal:"Personal",cometido:"Cometido laboral",gremial:"Horas gremiales"};
 var PILL={personal:"p-per",cometido:"p-com",gremial:"p-gre"};
-
-/* ---------- Almacenamiento (IndexedDB, con respaldo en memoria) ---------- */
-var db=null,seq=1,mem={staff:new Map(),perms:new Map(),meta:new Map()};
-var KP={staff:"rut",perms:"id",meta:"k"};
-function openDb(){return new Promise(function(res){
-  var done=false,fin=function(v){if(!done){done=true;res(v)}};
-  try{
-    var r=indexedDB.open("incosaf_permisos",1);
-    r.onupgradeneeded=function(){var d=r.result;d.createObjectStore("staff",{keyPath:"rut"});d.createObjectStore("perms",{keyPath:"id",autoIncrement:true});d.createObjectStore("meta",{keyPath:"k"})};
-    r.onsuccess=function(){db=r.result;fin(true)};
-    r.onerror=r.onblocked=function(){fin(false)};
-    setTimeout(function(){fin(false)},3000);
-  }catch(e){fin(false)}
-})}
-function tx(s,m,fn){return new Promise(function(ok,ko){var t=db.transaction(s,m),r=fn(t.objectStore(s));t.oncomplete=function(){ok(r&&r.result)};t.onerror=t.onabort=function(){ko(t.error)}})}
-var S={
-  all:function(s){return db?tx(s,"readonly",function(o){return o.getAll()}):Promise.resolve(Array.from(mem[s].values()))},
-  get:function(s,k){return db?tx(s,"readonly",function(o){return o.get(k)}):Promise.resolve(mem[s].get(k))},
-  put:function(s,v){
-    if(db)return tx(s,"readwrite",function(o){return o.put(v)}).then(function(k){if(s==="perms")v.id=k;return v});
-    if(s==="perms"&&v.id==null)v.id=seq++;
-    mem[s].set(v[KP[s]],v);return Promise.resolve(v)},
-  del:function(s,k){if(db)return tx(s,"readwrite",function(o){return o.delete(k)});mem[s].delete(k);return Promise.resolve()},
-  clear:function(s){if(db)return tx(s,"readwrite",function(o){return o.clear()});mem[s].clear();return Promise.resolve()}
-};
-var CFG={k:"cfg",pin:"1234",limit:360,auth:["Director","Inspector General","Jefe UTP"]};
-function loadCfg(){return S.get("meta","cfg").then(function(c){if(c)Object.assign(CFG,c)})}
+var CFG={limit:6};
 
 /* ---------- Utilidades ---------- */
 var pad2=function(n){return String(n).padStart(2,"0")};
 var fT=function(t){var d=new Date(t);return pad2(d.getHours())+":"+pad2(d.getMinutes())};
 var fD=function(t){var d=new Date(t);return pad2(d.getDate())+"-"+pad2(d.getMonth()+1)+"-"+d.getFullYear()};
+var fDT=function(t){return fD(t)+" "+fT(t)};
 var fM=function(m){return Math.floor(m/60)+"h "+pad2(m%60)+"m"};
 var mKey=function(t){var d=new Date(t);return d.getFullYear()*12+d.getMonth()};
-var dKey=function(t){var d=new Date(t);return d.getFullYear()*372+d.getMonth()*31+d.getDate()};
+var monthStart=function(t){var d=new Date(t);return new Date(d.getFullYear(),d.getMonth(),1).getTime()};
+var dayStart=function(t){var d=new Date(t);return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime()};
 var dur=function(p){return Math.max(0,Math.round(((p.in||Date.now())-p.out)/60000))};
 var cap=function(s){return s.charAt(0).toUpperCase()+s.slice(1)};
 function cleanRut(s){return String(s||"").toUpperCase().replace(/[^0-9K]/g,"")}
@@ -867,6 +865,48 @@ function download(name,blob){var a=document.createElement("a");a.href=URL.create
 function armBtn(b,fn){var t;b.addEventListener("click",function(){if(b.classList.contains("arm")){clearTimeout(t);b.classList.remove("arm");b.textContent=b.dataset.t;fn()}else{b.dataset.t=b.textContent;b.classList.add("arm");b.textContent="¿Confirmar?";t=setTimeout(function(){b.classList.remove("arm");b.textContent=b.dataset.t},4000)}})}
 function usedMin(perms,rut,ref){var k=mKey(ref||Date.now());return perms.filter(function(p){return p.rut===rut&&p.motivo!=="gremial"&&mKey(p.out)===k}).reduce(function(a,p){return a+dur(p)},0)}
 var limMin=function(){return Math.round(CFG.limit*60)};
+
+/* ---------- Supabase ---------- */
+var kio=null,adm=null,C=null,admSigned=false;
+var configured=/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)/i.test(SUPABASE_URL)&&SUPABASE_KEY.length>20&&!!window.supabase;
+function mkClient(persist,key){return window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:persist,autoRefreshToken:persist,detectSessionInUrl:false,storageKey:key}})}
+async function ok(p){var r=await p;if(r.error)throw r.error;return r.data}
+function rowToPerm(r){return {id:r.id,rut:r.rut,nombre:r.nombre,cargo:r.cargo||"",area:r.area||"",motivo:r.motivo,detalle:r.detalle||"",destino:r.destino||"",tarea:r.tarea||"",vuelta:r.vuelta||"",out:Date.parse(r.t_out),in:r.t_in?Date.parse(r.t_in):null,exc:!!r.exc,auth:r.auth||""}}
+function permToRow(p){return {rut:p.rut,nombre:p.nombre,cargo:p.cargo||"",area:p.area||"",motivo:p.motivo,detalle:p.detalle||"",destino:p.destino||"",tarea:p.tarea||"",vuelta:p.vuelta||"",t_in:p.in?new Date(p.in).toISOString():null,exc:!!p.exc,auth:p.auth||""}}
+var DB={
+  staff:function(rut){return ok(C.from("staff").select("*").eq("rut",rut).eq("activo",true).maybeSingle())},
+  staffAll:function(){return ok(C.from("staff").select("*").eq("activo",true).order("nombre").range(0,4999))},
+  staffUp:function(rows,c){return ok((c||C).from("staff").upsert(rows,{onConflict:"rut"}))},
+  staffOff:function(rut){return ok(C.from("staff").update({activo:false}).eq("rut",rut))},
+  perms:async function(o){
+    var out=[],from=0,step=1000;
+    for(;;){
+      var q=C.from("perms").select("*").order("t_out",{ascending:false}).order("id",{ascending:false}).range(from,from+step-1);
+      if(o.rut)q=q.eq("rut",o.rut);
+      if(o.since!=null)q=q.gte("t_out",new Date(o.since).toISOString());
+      if(o.until!=null)q=q.lt("t_out",new Date(o.until).toISOString());
+      if(o.open)q=q.is("t_in",null);
+      var d=await ok(q);out=out.concat(d);if(d.length<step)break;from+=step;
+    }
+    return out.map(rowToPerm);
+  },
+  permAdd:async function(p){return rowToPerm(await ok(C.from("perms").insert(permToRow(p)).select().single()))},
+  permSave:async function(p){return rowToPerm(await ok(C.from("perms").update(permToRow(p)).eq("id",p.id).select().single()))},
+  permDel:function(id){return ok(C.from("perms").delete().eq("id",id))},
+  cfg:async function(){var r=await ok(C.from("settings").select("limit_hours").eq("id",1).maybeSingle());if(r)CFG.limit=Number(r.limit_hours)},
+  cfgSave:function(h){return ok(C.from("settings").update({limit_hours:h}).eq("id",1))},
+  audit:function(){return ok(C.from("audit_log").select("*").order("at",{ascending:false}).limit(300))}
+};
+async function monthPerms(rut,ref){return DB.perms({rut:rut,since:monthStart(ref||Date.now())})}
+function setStatus(on,txt){$("dbDot").className="dot "+(on?"on":"off");$("dbTxt").textContent=txt}
+function authErr(e){return e&&(e.code==="PGRST301"||/jwt|not authenticated|refresh token/i.test(e.message||""))}
+function fail(e){
+  console.error(e);
+  if(authErr(e)&&C===kio){setStatus(false,"Sesión del kiosco vencida");$("kioModal").hidden=false;return}
+  var msg=(e&&e.message)||"Error desconocido";
+  if(!$("admin").hidden){alert("Error: "+msg);return}
+  setStatus(false,"Sin conexión");reset();$("kMsg").textContent="No se pudo comunicar con el servidor. Intente de nuevo. ("+msg+")";
+}
 
 /* ---------- Reloj ---------- */
 function tick(){
@@ -878,31 +918,38 @@ function tick(){
 
 /* ---------- Kiosco ---------- */
 var STEPS=["stRut","stMotivo","stRegreso","stNuevo","stDone"];
-var rut="",cur=null,curOpen=null,motivo=null,unlockedBy=null,idle=null,doneT=null;
+var rut="",cur=null,curOpen=null,motivo=null,unlockedBy=null,idle=null,doneT=null,busy=false;
 function show(id){
   STEPS.forEach(function(s){$(s).hidden=s!==id});
   clearTimeout(idle);clearTimeout(doneT);
   if(id!=="stRut")idle=setTimeout(reset,90000);
 }
-function reset(){rut="";cur=null;curOpen=null;motivo=null;unlockedBy=null;$("kMsg").textContent="";$("bNuevoK").hidden=true;$("rutBox").classList.remove("err");drawRut();show("stRut")}
+function reset(){
+  rut="";cur=null;curOpen=null;motivo=null;unlockedBy=null;busy=false;
+  $("kMsg").textContent="";$("bNuevoK").hidden=true;$("rutBox").classList.remove("err");drawRut();show("stRut");
+  if(admSigned&&$("admin").hidden){admSigned=false;adm.auth.signOut().catch(function(){})}
+}
 function drawRut(){$("rutShow").innerHTML=rut?esc(fmtRut(rut)):'<span class="ph">12.345.678-9</span>'}
 function press(k){
+  if(busy)return;
   var m=$("kMsg");
   if(k==="DEL"){rut=rut.slice(0,-1)}
   else if(k==="OK"){return submitRut()}
   else if(rut.length<9){if(k==="K"&&rut.length<7)return;rut+=k}
   m.textContent="";$("bNuevoK").hidden=true;$("rutBox").classList.remove("err");drawRut();
 }
-function submitRut(){
+async function submitRut(){
   var m=$("kMsg");
   if(!rutOk(rut)){m.textContent="RUT inválido. Revise el número y el dígito verificador.";$("rutBox").classList.add("err");return}
-  S.get("staff",rut).then(function(p){
-    if(!p){m.textContent="RUT no registrado en el sistema.";$("bNuevoK").hidden=false;return}
-    cur=p;return S.all("perms").then(function(ps){
-      curOpen=ps.filter(function(x){return x.rut===p.rut&&!x.in}).pop()||null;
-      if(curOpen)showRegreso();else showMotivo(ps);
-    });
-  });
+  busy=true;m.textContent="Buscando…";
+  try{
+    var c=cleanRut(rut),p=await DB.staff(c);
+    if(!p){busy=false;m.textContent="RUT no registrado en el sistema.";$("bNuevoK").hidden=false;return}
+    cur=p;rut=c;
+    var r=await Promise.all([monthPerms(c),DB.perms({rut:c,open:true})]);
+    curOpen=r[1][0]||null;busy=false;m.textContent="";
+    if(curOpen)showRegreso();else showMotivo(r[0]);
+  }catch(e){busy=false;fail(e)}
 }
 function showRegreso(){
   $("rNombre").textContent=cur.nombre;$("rCargo").textContent=[cur.cargo,cur.area].filter(Boolean).join(" · ");
@@ -916,7 +963,7 @@ function showMotivo(ps){
   $("pSaldo").className="saldo-k"+(u>=l?" full":"");
   $("pSaldo").innerHTML='<span>Tiempo utilizado este mes</span><span class="big">'+fM(u)+" / "+fM(l)+'</span><div class="bar"><i style="width:'+pc+'%"></i></div>';
   $("pBlock").hidden=!full;
-  $("pBlockTxt").textContent="Ya utilizó el tiempo autorizado del mes. Puede descargar el permiso administrativo o pedir el desbloqueo a quien autoriza.";
+  $("pBlockTxt").textContent="Ya utilizó el tiempo autorizado del mes. Puede descargar el permiso administrativo o pedir el desbloqueo a Inspectoría.";
   $("pBlockMsg").textContent="";
   document.querySelectorAll(".mbtn").forEach(function(b){b.setAttribute("aria-pressed","false");b.disabled=full&&b.dataset.m!=="gremial"});
   $("greNote").hidden=true;$("comFields").hidden=true;$("kDetalle").value="";
@@ -925,7 +972,7 @@ function showMotivo(ps){
 }
 function canSalida(){
   if(!motivo)return false;
-  if(motivo==="cometido")return $("cDestino").value.trim()&&$("cTarea").value.trim();
+  if(motivo==="cometido")return !!($("cDestino").value.trim()&&$("cTarea").value.trim());
   return true;
 }
 function done(title,hora,text,exc,pdf){
@@ -935,23 +982,26 @@ function done(title,hora,text,exc,pdf){
   if(!pdf)doneT=setTimeout(reset,exc?9000:5000);
 }
 var lastPerm=null;
-function doSalida(){
-  var p={rut:cur.rut,nombre:cur.nombre,cargo:cur.cargo||"",area:cur.area||"",motivo:motivo,detalle:$("kDetalle").value.trim(),out:Date.now(),in:null,exc:false,auth:unlockedBy||""};
+async function doSalida(){
+  if(busy)return;busy=true;
+  var p={rut:cur.rut,nombre:cur.nombre,cargo:cur.cargo||"",area:cur.area||"",motivo:motivo,detalle:$("kDetalle").value.trim(),in:null,exc:false,auth:unlockedBy||""};
   if(motivo==="cometido"){p.destino=$("cDestino").value.trim();p.tarea=$("cTarea").value.trim();p.vuelta=$("cVuelta").value}
-  S.put("perms",p).then(function(){
-    lastPerm=p;
+  try{
+    p=await DB.permAdd(p);busy=false;lastPerm=p;
     done("Salida registrada",fT(p.out),cur.nombre+" · "+MOT[motivo],false,motivo==="cometido");
-  });
+  }catch(e){busy=false;fail(e)}
 }
-function doRegreso(){
-  curOpen.in=Date.now();
-  S.put("perms",curOpen).then(function(){return S.all("perms")}).then(function(ps){
+async function doRegreso(){
+  if(busy)return;busy=true;
+  try{
+    curOpen.in=Date.now();
+    curOpen=await DB.permSave(curOpen);
+    var ps=await DB.perms({rut:cur.rut,since:monthStart(curOpen.out)});
     var exc=curOpen.motivo!=="gremial"&&usedMin(ps,cur.rut,curOpen.out)>limMin();
-    if(exc){curOpen.exc=true;return S.put("perms",curOpen).then(function(){return exc})}
-    return exc;
-  }).then(function(exc){
+    if(exc){curOpen.exc=true;curOpen=await DB.permSave(curOpen)}
+    busy=false;
     done("Regreso registrado",fT(curOpen.in),cur.nombre+" · duración "+fM(dur(curOpen)),exc,false);
-  });
+  }catch(e){busy=false;fail(e)}
 }
 
 /* ---------- PDF ---------- */
@@ -972,100 +1022,123 @@ function pdfCometido(p){
   mkPdf("SOLICITUD DE COMETIDO LABORAL",[["Fecha",fD(p.out)],["Funcionario(a)",p.nombre],["RUT",fmtRut(p.rut)],["Cargo",p.cargo],["Hora de salida",fT(p.out)],["Regreso estimado",p.vuelta],["Destino",p.destino],["Objetivo",p.tarea],["Detalle",p.detalle]],"cometido_"+p.rut+"_"+fD(p.out)+".pdf");
 }
 function pdfAdmin(person){
-  var now=Date.now();
-  mkPdf("SOLICITUD DE PERMISO ADMINISTRATIVO",[["Fecha",fD(now)],["Funcionario(a)",person.nombre],["RUT",fmtRut(person.rut)],["Cargo",person.cargo],["Motivo de la solicitud","Tiempo mensual de control interno agotado"],["Detalle",""]],"permiso_administrativo_"+person.rut+".pdf","Solicitud para su autorización por Dirección.");
+  mkPdf("SOLICITUD DE PERMISO ADMINISTRATIVO",[["Fecha",fD(Date.now())],["Funcionario(a)",person.nombre],["RUT",fmtRut(person.rut)],["Cargo",person.cargo],["Motivo de la solicitud","Tiempo mensual de control interno agotado"],["Detalle",""]],"permiso_administrativo_"+person.rut+".pdf","Solicitud para su autorización por Dirección.");
 }
 
-/* ---------- Modal PIN ---------- */
-var pinCb=null,pinMode=null;
-function openPin(mode,cb,title,text){
-  pinMode=mode;pinCb=cb;$("pinTitle").textContent=title||"Acceso Inspectoría";
+/* ---------- Acceso de inspectores (correo + contraseña) ---------- */
+var pinCb=null;
+function openPin(cb,title,text){
+  pinCb=cb;$("pinTitle").textContent=title||"Acceso Inspectoría";
   $("pinText").hidden=!text;$("pinText").textContent=text||"";
-  $("pinIn").value="";$("pinErr").hidden=true;
-  var w=mode==="unlock";$("pinWhoF").hidden=!w;
-  if(w)$("pinWho").innerHTML=CFG.auth.map(function(a){return "<option>"+esc(a)+"</option>"}).join("");
-  $("pinModal").hidden=false;setTimeout(function(){$("pinIn").focus()},30);
+  $("pinIn").value="";$("pinErr").hidden=true;$("pinOk").disabled=false;
+  $("pinModal").hidden=false;setTimeout(function(){$("pinEm").focus()},30);
 }
 function closePin(){$("pinModal").hidden=true;pinCb=null}
+async function loginInspector(email,pw){
+  var r=await adm.auth.signInWithPassword({email:email,password:pw});
+  if(r.error)throw new Error("Correo o contraseña incorrectos.");
+  admSigned=true;
+  var u=await adm.from("usuarios").select("nombre,rol").eq("user_id",r.data.user.id).maybeSingle();
+  if(u.error||!u.data||u.data.rol!=="inspector"){admSigned=false;await adm.auth.signOut();throw new Error("Esta cuenta no tiene permiso de Inspectoría.")}
+  return {nombre:u.data.nombre||email,email:email};
+}
 
 /* ---------- Administración ---------- */
-var tab="tHoy";
-function setTab(t){tab=t;document.querySelectorAll(".tabs button").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.tab===t))});["tHoy","tHist","tPer","tCfg"].forEach(function(x){$(x).hidden=x!==t});renderAdmin()}
+var tab="tHoy",INSP=null,admIdle=null;
+var TABS=["tHoy","tHist","tPer","tAud","tCfg"];
+function bumpAdm(){clearTimeout(admIdle);admIdle=setTimeout(exitAdmin,10*60000)}
+function exitAdmin(){clearTimeout(admIdle);$("admin").hidden=true;$("kiosk").hidden=false;C=kio;INSP=null;reset()}
+function setTab(t){tab=t;document.querySelectorAll(".tabs button").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.tab===t))});TABS.forEach(function(x){$(x).hidden=x!==t});renderAdmin()}
 function pill(p){return '<span class="pill '+PILL[p.motivo]+'">'+MOT[p.motivo]+"</span>"}
-function permRow(p,act){
-  return "<tr><td>"+esc(p.nombre)+"<br><small>"+esc(fmtRut(p.rut))+"</small></td><td>"+pill(p)+"</td><td class=num>"+fD(p.out)+" "+fT(p.out)+"</td><td class=num>"+(p.in?fT(p.in):'<span class="pill p-out">Fuera</span>')+"</td><td class=num>"+fM(dur(p))+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.exc?' <span class="pill p-exc">Excede</span>':"")+(p.auth?" <small>(autoriza: "+esc(p.auth)+")</small>":"")+"</td>"+(act?"<td>"+(p.in?"":'<button class="btn sm" data-close="'+p.id+'">Cerrar</button> ')+'<button class="btn sm danger" data-del="'+p.id+'">Eliminar</button></td>':"")+"</tr>";
+function permRow(p){
+  return "<tr><td>"+esc(p.nombre)+"<br><small>"+esc(fmtRut(p.rut))+"</small></td><td>"+pill(p)+"</td><td class=num>"+fDT(p.out)+"</td><td class=num>"+(p.in?fT(p.in):'<span class="pill p-out">Fuera</span>')+"</td><td class=num>"+fM(dur(p))+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.exc?' <span class="pill p-exc">Excede</span>':"")+(p.auth?" <small>(autorizó: "+esc(p.auth)+")</small>":"")+"</td><td>"+(p.in?"":'<button class="btn sm" data-close="'+p.id+'">Cerrar</button> ')+'<button class="btn sm danger" data-del="'+p.id+'">Eliminar</button></td></tr>';
 }
-function table(head,rows,act){
+function table(head,rows,extra){
   if(!rows.length)return '<div class="empty">Sin registros.</div>';
-  return '<div class="tbl-wrap"><table><thead><tr>'+head.map(function(h){return "<th>"+h+"</th>"}).join("")+(act?"<th></th>":"")+"</tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
+  return '<div class="tbl-wrap"><table><thead><tr>'+head.map(function(h){return "<th>"+h+"</th>"}).join("")+(extra?"<th></th>":"")+"</tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
 }
 var PH=["Funcionario","Motivo","Salida","Regreso","Duración","Detalle"];
+var cache={};
 function bindRows(root){
-  root.querySelectorAll("[data-close]").forEach(function(b){b.onclick=function(){S.get("perms",+b.dataset.close).then(function(p){p.in=Date.now();return S.put("perms",p)}).then(renderAdmin)}});
-  root.querySelectorAll("[data-del]").forEach(function(b){armBtn(b,function(){S.del("perms",+b.dataset.del).then(renderAdmin)})});
+  root.querySelectorAll("[data-close]").forEach(function(b){b.onclick=async function(){
+    try{var p=cache[b.dataset.close];p.in=Date.now();await DB.permSave(p);renderAdmin()}catch(e){fail(e)}}});
+  root.querySelectorAll("[data-del]").forEach(function(b){armBtn(b,async function(){try{await DB.permDel(+b.dataset.del);renderAdmin()}catch(e){fail(e)}})});
 }
-function histFiltered(ps){
-  var m=$("hMes").value,q=$("hQ").value.trim().toLowerCase(),mo=$("hMot").value;
-  return ps.filter(function(p){
-    if(m){var d=new Date(p.out);if(d.getFullYear()+"-"+pad2(d.getMonth()+1)!==m)return false}
-    if(mo&&p.motivo!==mo)return false;
-    if(q&&(p.nombre+" "+p.rut).toLowerCase().indexOf(q)<0)return false;
-    return true}).sort(function(a,b){return b.out-a.out});
+function remember(ps){ps.forEach(function(p){cache[p.id]=p});return ps}
+function histRange(){
+  var m=$("hMes").value;if(!m){var n=new Date();m=n.getFullYear()+"-"+pad2(n.getMonth()+1);$("hMes").value=m}
+  var y=+m.slice(0,4),mo=+m.slice(5,7);
+  return {since:new Date(y,mo-1,1).getTime(),until:new Date(y,mo,1).getTime()};
 }
-function renderAdmin(){
-  Promise.all([S.all("perms"),S.all("staff")]).then(function(r){
-    var ps=r[0],st=r[1],td=dKey(Date.now());
-    if(tab==="tHoy"){
-      var h=ps.filter(function(p){return dKey(p.out)===td||!p.in}).sort(function(a,b){return b.out-a.out});
+function histFilter(ps){
+  var q=$("hQ").value.trim().toLowerCase(),mo=$("hMot").value;
+  return ps.filter(function(p){return (!mo||p.motivo===mo)&&(!q||(p.nombre+" "+p.rut).toLowerCase().indexOf(q)>=0)});
+}
+async function renderAdmin(){
+  bumpAdm();
+  var t=tab;
+  try{
+    if(t==="tHoy"){
+      var r=await Promise.all([DB.perms({since:dayStart(Date.now())}),DB.perms({open:true})]);
+      var seen={},h=remember(r[0].concat(r[1])).filter(function(p){return seen[p.id]?false:(seen[p.id]=true)}).sort(function(a,b){return b.out-a.out});
       var st5=[["Salidas hoy",h.length],["Fuera ahora",h.filter(function(p){return !p.in}).length],["Cometidos",h.filter(function(p){return p.motivo==="cometido"}).length],["Horas gremiales",h.filter(function(p){return p.motivo==="gremial"}).length],["Excedidos",h.filter(function(p){return p.exc}).length]];
+      if(tab!==t)return;
       $("stats").innerHTML=st5.map(function(s,i){return '<div class="stat'+(i===4&&s[1]?" hot":"")+'"><div class="l">'+s[0]+'</div><div class="v">'+s[1]+"</div></div>"}).join("");
-      $("hoyTbl").innerHTML=table(PH,h.map(function(p){return permRow(p,true)}),true);bindRows($("hoyTbl"));
-    }else if(tab==="tHist"){
-      if(!$("hMes").value){var n=new Date();$("hMes").value=n.getFullYear()+"-"+pad2(n.getMonth()+1)}
-      var f=histFiltered(ps);
-      $("histTbl").innerHTML=table(PH,f.map(function(p){return permRow(p,true)}),true);bindRows($("histTbl"));
-    }else if(tab==="tPer"){
-      var l=limMin();
-      $("perTbl").innerHTML=table(["RUT","Nombre","Cargo","Área","Uso del mes",""],st.sort(function(a,b){return a.nombre.localeCompare(b.nombre,"es")}).map(function(p){
-        var u=usedMin(ps,p.rut),pc=l?Math.min(100,Math.round(u/l*100)):100;
+      $("hoyTbl").innerHTML=table(PH,h.map(permRow),true);bindRows($("hoyTbl"));
+    }else if(t==="tHist"){
+      var f=histFilter(remember(await DB.perms(histRange())));
+      if(tab!==t)return;
+      $("histTbl").innerHTML=table(PH,f.map(permRow),true);bindRows($("histTbl"));
+    }else if(t==="tPer"){
+      var rr=await Promise.all([DB.staffAll(),DB.perms({since:monthStart(Date.now())})]),l=limMin();
+      if(tab!==t)return;
+      $("perTbl").innerHTML=table(["RUT","Nombre","Cargo","Área","Uso del mes",""],rr[0].map(function(p){
+        var u=usedMin(rr[1],p.rut),pc=l?Math.min(100,Math.round(u/l*100)):100;
         return "<tr><td class=num>"+esc(fmtRut(p.rut))+"</td><td>"+esc(p.nombre)+"</td><td>"+esc(p.cargo)+"</td><td>"+esc(p.area)+'</td><td><span class="meter'+(u>=l?" full":"")+'"><i style="width:'+pc+'%"></i></span> '+fM(u)+'</td><td><button class="btn sm danger" data-rm="'+esc(p.rut)+'">Quitar</button></td></tr>'}),false);
-      $("perTbl").querySelectorAll("[data-rm]").forEach(function(b){armBtn(b,function(){S.del("staff",b.dataset.rm).then(renderAdmin)})});
+      $("perTbl").querySelectorAll("[data-rm]").forEach(function(b){armBtn(b,async function(){try{await DB.staffOff(b.dataset.rm);renderAdmin()}catch(e){fail(e)}})});
+    }else if(t==="tAud"){
+      var a=await DB.audit();if(tab!==t)return;
+      var AC={INSERT:"Alta",UPDATE:"Cambio",DELETE:"Eliminación"},TB={perms:"Permiso",staff:"Funcionario",settings:"Parámetros"};
+      $("audTbl").innerHTML=table(["Fecha","Usuario","Tabla","Acción","Detalle"],a.map(function(x){
+        var d=x.despues||x.antes||{},txt=d.nombre?d.nombre+(d.motivo?" · "+(MOT[d.motivo]||d.motivo):"")+(x.accion==="UPDATE"&&x.despues&&x.despues.t_in&&x.antes&&!x.antes.t_in?" · regreso":"")+(x.accion==="UPDATE"&&d.activo===false?" · dado de baja":""):(d.limit_hours!=null?"Límite "+d.limit_hours+" h":"");
+        return "<tr><td class=num>"+fDT(x.at)+"</td><td>"+esc(x.usuario)+"</td><td>"+esc(TB[x.tabla]||x.tabla)+"</td><td>"+esc(AC[x.accion]||x.accion)+"</td><td>"+esc(txt)+"</td></tr>"}),false);
     }
-  });
+  }catch(e){fail(e)}
 }
 function note(el,t,cls){el.hidden=false;el.className="note "+(cls||"");el.textContent=t}
-function addStaff(r){
-  var c=cleanRut(r.rut);if(!rutOk(c)||!String(r.nombre||"").trim())return Promise.resolve(false);
-  return S.put("staff",{rut:c,nombre:String(r.nombre).trim(),cargo:String(r.cargo||"").trim(),area:String(r.area||"").trim()}).then(function(){return true});
+function staffRow(r){
+  var c=cleanRut(r.rut);if(!rutOk(c)||!String(r.nombre||"").trim())return null;
+  return {rut:c,nombre:String(r.nombre).trim(),cargo:String(r.cargo||"").trim(),area:String(r.area||"").trim(),activo:true};
 }
 function importFile(file){
   var rd=new FileReader();
-  rd.onload=function(){
+  rd.onload=async function(){
     try{
       var wb=XLSX.read(rd.result,{type:"array"}),rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
-      var get=function(r,names){for(var k in r){var kk=k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();if(names.indexOf(kk)>=0)return r[k]}return ""};
-      var ok=0,bad=0;
-      Promise.all(rows.map(function(r){return addStaff({rut:get(r,["rut","run"]),nombre:get(r,["nombre","nombre completo","funcionario"]),cargo:get(r,["cargo"]),area:get(r,["area","departamento","especialidad"])}).then(function(v){v?ok++:bad++})})).then(function(){
-        note($("fMsg"),ok+" funcionarios importados"+(bad?"; "+bad+" filas omitidas (RUT inválido o sin nombre).":"."),bad?"":"ok");renderAdmin()});
-    }catch(e){note($("fMsg"),"No se pudo leer el archivo.","bad")}
+      var get=function(r,names){for(var k in r){var kk=k.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();if(names.indexOf(kk)>=0)return r[k]}return ""};
+      var good=[],bad=0,seen={};
+      rows.forEach(function(r){var s=staffRow({rut:get(r,["rut","run"]),nombre:get(r,["nombre","nombre completo","funcionario"]),cargo:get(r,["cargo"]),area:get(r,["area","departamento","especialidad"])});
+        if(s&&!seen[s.rut]){seen[s.rut]=1;good.push(s)}else bad++});
+      if(good.length)await DB.staffUp(good);
+      note($("fMsg"),good.length+" funcionarios importados"+(bad?"; "+bad+" filas omitidas (RUT inválido, repetido o sin nombre).":"."),bad?"":"ok");renderAdmin();
+    }catch(e){note($("fMsg"),"No se pudo importar: "+((e&&e.message)||"archivo ilegible"),"bad")}
   };
   rd.readAsArrayBuffer(file);
 }
-function exportXls(){
-  S.all("perms").then(function(ps){
-    var f=histFiltered(ps).map(function(p){return {RUT:fmtRut(p.rut),Nombre:p.nombre,Cargo:p.cargo,Motivo:MOT[p.motivo],Fecha:fD(p.out),Salida:fT(p.out),Regreso:p.in?fT(p.in):"",Minutos:dur(p),Destino:p.destino||"",Detalle:p.tarea||p.detalle||"",Excede:p.exc?"Sí":"",Autoriza:p.auth||""}});
+async function exportXls(){
+  try{
+    var f=histFilter(await DB.perms(histRange())).map(function(p){return {RUT:fmtRut(p.rut),Nombre:p.nombre,Cargo:p.cargo,Motivo:MOT[p.motivo],Fecha:fD(p.out),Salida:fT(p.out),Regreso:p.in?fT(p.in):"",Minutos:dur(p),Destino:p.destino||"",Detalle:p.tarea||p.detalle||"",Excede:p.exc?"Sí":"",Autoriza:p.auth||""}});
     var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(f),"Permisos");
-    XLSX.writeFile(wb,"permisos_"+($("hMes").value||"todos")+".xlsx");
-  });
+    XLSX.writeFile(wb,"permisos_"+$("hMes").value+".xlsx");
+  }catch(e){fail(e)}
 }
-function loadCfgForm(){$("cLim").value=CFG.limit;$("cPin").value=CFG.pin;$("cAut").value=CFG.auth.join("\n")}
 
 /* ---------- Eventos ---------- */
 function bind(){
   $("pad").addEventListener("click",function(e){var b=e.target.closest("button");if(b)press(b.dataset.k)});
   $("rutBox").addEventListener("click",function(){$("rutHidden").focus()});
   document.addEventListener("keydown",function(e){
-    if(!$("pinModal").hidden||$("stRut").hidden||!$("admin").hidden||e.ctrlKey||e.metaKey||e.altKey)return;
+    if(!$("pinModal").hidden||!$("kioModal").hidden||$("stRut").hidden||!$("admin").hidden||e.ctrlKey||e.metaKey||e.altKey)return;
     var t=e.target;if(t!==$("rutHidden")&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))return;
     if(/^[0-9]$/.test(e.key)){press(e.key);e.preventDefault()}
     else if(e.key==="k"||e.key==="K"){press("K");e.preventDefault()}
@@ -1083,51 +1156,73 @@ function bind(){
   $("bCancel1").onclick=$("bCancel2").onclick=$("bFin").onclick=reset;
   $("bPdfK").onclick=function(){try{pdfCometido(lastPerm)}catch(e){$("dPdfMsg").textContent="No se pudo generar el PDF."}};
   $("bPdfAdmK").onclick=function(){try{pdfAdmin(cur)}catch(e){$("pBlockMsg").textContent="No se pudo generar el PDF."}};
-  $("bFirmaK").onclick=function(){openPin("unlock",function(who){unlockedBy=who;S.all("perms").then(showMotivo)},"Desbloqueo autorizado","Ingrese la clave de quien autoriza el permiso.")};
-  $("bNuevoK").onclick=function(){openPin("nuevo",function(){
-    $("nRut").value=fmtRut(rut);["nCargo","nNombre","nArea"].forEach(function(i){$(i).value=""});$("nMsg").textContent="";show("stNuevo")},"Nuevo funcionario","Requiere la clave de Inspectoría.")};
+  $("bFirmaK").onclick=function(){openPin(async function(insp){
+    unlockedBy=insp.nombre;adm.auth.signOut().catch(function(){});admSigned=false;
+    try{showMotivo(await monthPerms(cur.rut))}catch(e){fail(e)}
+  },"Desbloqueo autorizado","Inspectoría debe ingresar su correo y contraseña. Quedará registrado quién autoriza.")};
+  $("bNuevoK").onclick=function(){openPin(function(){
+    $("nRut").value=fmtRut(rut);["nCargo","nNombre","nArea"].forEach(function(i){$(i).value=""});$("nMsg").textContent="";show("stNuevo")},"Nuevo funcionario","Requiere correo y contraseña de Inspectoría.")};
   $("bCancelN").onclick=reset;
-  $("stNuevo").addEventListener("submit",function(e){e.preventDefault();
+  $("stNuevo").addEventListener("submit",async function(e){e.preventDefault();
     var n=$("nNombre").value.trim();if(!n){$("nMsg").textContent="Ingrese el nombre completo.";return}
-    addStaff({rut:rut,nombre:n,cargo:$("nCargo").value||"Docente",area:$("nArea").value}).then(function(){return S.get("staff",cleanRut(rut))}).then(function(p){cur=p;curOpen=null;return S.all("perms")}).then(showMotivo)});
+    try{
+      var row=staffRow({rut:rut,nombre:n,cargo:$("nCargo").value||"Docente",area:$("nArea").value});
+      if(!row){$("nMsg").textContent="Datos inválidos.";return}
+      await DB.staffUp([row],adm);
+      cur=await DB.staff(row.rut);curOpen=null;rut=row.rut;
+      adm.auth.signOut().catch(function(){});admSigned=false;
+      showMotivo(await monthPerms(cur.rut));
+    }catch(er){fail(er)}});
   $("bFull").onclick=function(){var d=document;if(d.fullscreenElement)d.exitFullscreen();else if(d.documentElement.requestFullscreen)d.documentElement.requestFullscreen()};
-  $("bAdmin").onclick=function(){openPin("admin",function(){$("kiosk").hidden=true;$("admin").hidden=false;loadCfgForm();setTab("tHoy")})};
-  $("aExit").onclick=function(){$("admin").hidden=true;$("kiosk").hidden=false;reset()};
+  $("bAdmin").onclick=function(){openPin(function(insp){
+    INSP=insp;C=adm;$("aWho").textContent="Inspectoría · "+insp.nombre;
+    $("kiosk").hidden=true;$("admin").hidden=false;$("hMes").value="";
+    DB.cfg().then(function(){$("cLim").value=CFG.limit}).catch(fail);setTab("tHoy")})};
+  $("aExit").onclick=function(){adm.auth.signOut().catch(function(){});admSigned=false;exitAdmin()};
+  $("admin").addEventListener("click",bumpAdm);$("admin").addEventListener("keydown",bumpAdm);
   $("pinCancel").onclick=closePin;
-  $("pinForm").addEventListener("submit",function(e){e.preventDefault();
-    if($("pinIn").value!==CFG.pin){$("pinErr").hidden=false;return}
-    var cb=pinCb,who=$("pinWho").value;closePin();if(cb)cb(who)});
+  $("pinForm").addEventListener("submit",async function(e){e.preventDefault();
+    var b=$("pinOk");b.disabled=true;$("pinErr").hidden=true;
+    try{var insp=await loginInspector($("pinEm").value.trim(),$("pinIn").value);var cb=pinCb;closePin();if(cb)cb(insp)}
+    catch(er){$("pinErr").textContent=er.message||"No se pudo iniciar sesión.";$("pinErr").hidden=false;b.disabled=false}});
+  $("kioForm").addEventListener("submit",async function(e){e.preventDefault();
+    var r=await kio.auth.signInWithPassword({email:$("kEm").value.trim(),password:$("kPw").value});
+    if(r.error){note($("kErr"),"Correo o contraseña incorrectos.","bad");return}
+    $("kPw").value="";$("kioModal").hidden=true;start()});
   document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});
   ["hMes","hQ","hMot"].forEach(function(i){$(i).addEventListener("input",renderAdmin)});
   $("hXls").onclick=exportXls;
-  $("fAdd").addEventListener("submit",function(e){e.preventDefault();
-    addStaff({rut:$("fRut").value,nombre:$("fNom").value,cargo:$("fCar").value,area:$("fAre").value}).then(function(ok){
-      if(ok){note($("fMsg"),"Funcionario guardado.","ok");$("fAdd").reset();renderAdmin()}else note($("fMsg"),"RUT inválido o nombre vacío.","bad")})});
+  $("fAdd").addEventListener("submit",async function(e){e.preventDefault();
+    var row=staffRow({rut:$("fRut").value,nombre:$("fNom").value,cargo:$("fCar").value,area:$("fAre").value});
+    if(!row){note($("fMsg"),"RUT inválido o nombre vacío.","bad");return}
+    try{await DB.staffUp([row]);note($("fMsg"),"Funcionario guardado.","ok");$("fAdd").reset();renderAdmin()}catch(er){note($("fMsg"),"No se pudo guardar: "+er.message,"bad")}});
   $("fFile").onchange=function(){if(this.files[0])importFile(this.files[0]);this.value=""};
   var dr=$("drop");
   dr.addEventListener("dragover",function(e){e.preventDefault();dr.classList.add("over")});
   dr.addEventListener("dragleave",function(){dr.classList.remove("over")});
   dr.addEventListener("drop",function(e){e.preventDefault();dr.classList.remove("over");if(e.dataTransfer.files[0])importFile(e.dataTransfer.files[0])});
-  $("cSave").onclick=function(){
-    var pin=$("cPin").value.trim(),lim=parseFloat($("cLim").value);
-    if(!pin||!(lim>=0)){note($("cMsg"),"Revise la clave y las horas.","bad");return}
-    CFG.pin=pin;CFG.limit=lim;CFG.auth=$("cAut").value.split("\n").map(function(s){return s.trim()}).filter(Boolean);
-    S.put("meta",CFG).then(function(){note($("cMsg"),"Parámetros guardados.","ok")})};
-  $("bBackup").onclick=function(){Promise.all([S.all("staff"),S.all("perms")]).then(function(r){download("respaldo_permisos_"+fD(Date.now())+".json",new Blob([JSON.stringify({staff:r[0],perms:r[1],cfg:CFG})],{type:"application/json"}))})};
-  $("bRestore").onchange=function(){var f=this.files[0];this.value="";if(!f)return;
-    f.text().then(function(t){var d=JSON.parse(t);return S.clear("staff").then(function(){return S.clear("perms")}).then(function(){return Promise.all((d.staff||[]).map(function(x){return S.put("staff",x)}).concat((d.perms||[]).map(function(x){return S.put("perms",x)})))}).then(function(){if(d.cfg){Object.assign(CFG,d.cfg);return S.put("meta",CFG)}}).then(function(){loadCfgForm();renderAdmin();note($("cMsg"),"Respaldo restaurado.","ok")})}).catch(function(){note($("cMsg"),"Archivo de respaldo inválido.","bad")})};
-  armBtn($("bWipe"),function(){S.clear("perms").then(function(){note($("cMsg"),"Permisos borrados.","ok")})});
+  $("cSave").onclick=async function(){
+    var lim=parseFloat($("cLim").value);
+    if(!(lim>=0)){note($("cMsg"),"Revise las horas.","bad");return}
+    try{await DB.cfgSave(lim);CFG.limit=lim;note($("cMsg"),"Parámetros guardados.","ok")}catch(e){note($("cMsg"),"No se pudo guardar: "+e.message,"bad")}};
+  $("bBackup").onclick=async function(){
+    try{var r=await Promise.all([DB.staffAll(),DB.perms({})]);download("respaldo_permisos_"+fD(Date.now())+".json",new Blob([JSON.stringify({staff:r[0],perms:r[1]})],{type:"application/json"}))}catch(e){fail(e)}};
 }
 
 /* ---------- Inicio ---------- */
+async function start(){
+  try{
+    var s=await kio.auth.getSession();
+    if(!s.data.session){setStatus(false,"Sin sesión");$("kioModal").hidden=false;return}
+    await DB.cfg();setStatus(true,"Conectado");
+  }catch(e){fail(e)}
+}
 $("aLogo").src=document.querySelector(".k-badge").src;
 bind();tick();setInterval(tick,1000);drawRut();
-openDb().then(function(ok){
-  $("noDb").hidden=ok;
-  $("dbDot").className="dot "+(ok?"on":"off");
-  $("dbTxt").textContent=ok?"Guardado en este equipo":"Sin conexión (los datos no se guardan)";
-  return loadCfg();
-}).catch(function(){});
+if(!configured){
+  $("noDb").textContent=window.supabase?"Falta configurar Supabase: edite SUPABASE_URL y SUPABASE_KEY en index.html.":"No se pudo cargar la librería de Supabase. Revise la conexión a internet.";
+  $("noDb").hidden=false;setStatus(false,"Sin configurar");
+}else{kio=mkClient(true,"incosaf-kiosco");adm=mkClient(false,"incosaf-inspector");C=kio;start()}
 })();
 </script>
 </body>
