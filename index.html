@@ -733,8 +733,8 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
   <form class="mcard" id="pinForm">
     <h3 id="pinTitle">Acceso Inspectoría</h3>
     <p id="pinText" style="margin:0;color:var(--muted)" hidden></p>
-    <div class="fld"><label for="pinEm">Correo institucional</label><input class="in" id="pinEm" type="email" autocomplete="username" required></div>
-    <div class="fld"><label for="pinIn">Contraseña</label><input class="in" id="pinIn" type="password" autocomplete="current-password" required></div>
+    <div class="fld"><label for="pinWho">Inspector</label><select class="in" id="pinWho"></select></div>
+    <div class="fld"><label for="pinIn">Contraseña</label><input class="in" id="pinIn" type="password" autocomplete="off" required></div>
     <div class="note bad" id="pinErr" hidden></div>
     <div class="row"><button type="button" class="btn" id="pinCancel">Cancelar</button><button class="btn pri" id="pinOk">Entrar</button></div>
   </form>
@@ -744,9 +744,8 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
 <div class="modal" id="kioModal" hidden>
   <form class="mcard" id="kioForm">
     <h3>Sesión del kiosco</h3>
-    <p style="margin:0;color:var(--muted)">Cuenta del computador del kiosco, creada por Inspectoría.</p>
-    <div class="fld"><label for="kEm">Correo</label><input class="in" id="kEm" type="email" autocomplete="username" required></div>
-    <div class="fld"><label for="kPw">Contraseña</label><input class="in" id="kPw" type="password" autocomplete="current-password" required></div>
+    <p style="margin:0;color:var(--muted)">Ingrese la contraseña del kiosco.</p>
+    <div class="fld"><label for="kPw">Contraseña</label><input class="in" id="kPw" type="password" autocomplete="off" required></div>
     <div class="note bad" id="kErr" hidden></div>
     <div class="row"><button class="btn pri">Entrar</button></div>
   </form>
@@ -831,7 +830,7 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js"></script>
 <script>
 (function(){
 "use strict";
@@ -839,6 +838,13 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
 /* ====== CONFIGURACIÓN SUPABASE (Project Settings > API) ====== */
 var SUPABASE_URL="https://awrwwtodxsplrsmbibrv.supabase.co";
 var SUPABASE_KEY="sb_publishable_RAaHNUiNTFzPxxbggXuiUw_sEXYOiqs";
+/* Cuentas (los correos no son secretos; lo secreto es la contraseña). */
+var KIOSCO_EMAIL="inspector4@incosaf.com";
+var INSPECTORES=[
+  {nombre:"Claudio",email:"inspector1@incosaf.com"},
+  {nombre:"Luis",email:"inspector2@incosaf.com"},
+  {nombre:"Inspector 3",email:"inspector3@incosaf.com"}
+];
 /* La clave "anon" es pública por diseño: la seguridad la dan las políticas RLS de supabase/schema.sql. */
 
 var $=function(id){return document.getElementById(id)};
@@ -1030,13 +1036,14 @@ var pinCb=null;
 function openPin(cb,title,text){
   pinCb=cb;$("pinTitle").textContent=title||"Acceso Inspectoría";
   $("pinText").hidden=!text;$("pinText").textContent=text||"";
+  $("pinWho").innerHTML=INSPECTORES.map(function(i){return '<option value="'+esc(i.email)+'">'+esc(i.nombre)+"</option>"}).join("");
   $("pinIn").value="";$("pinErr").hidden=true;$("pinOk").disabled=false;
-  $("pinModal").hidden=false;setTimeout(function(){$("pinEm").focus()},30);
+  $("pinModal").hidden=false;setTimeout(function(){$("pinIn").focus()},30);
 }
 function closePin(){$("pinModal").hidden=true;pinCb=null}
 async function loginInspector(email,pw){
   var r=await adm.auth.signInWithPassword({email:email,password:pw});
-  if(r.error)throw new Error("Correo o contraseña incorrectos.");
+  if(r.error)throw new Error("Contraseña incorrecta.");
   admSigned=true;
   var u=await adm.from("usuarios").select("nombre,rol").eq("user_id",r.data.user.id).maybeSingle();
   if(u.error||!u.data||u.data.rol!=="inspector"){admSigned=false;await adm.auth.signOut();throw new Error("Esta cuenta no tiene permiso de Inspectoría.")}
@@ -1183,12 +1190,14 @@ function bind(){
   $("pinCancel").onclick=closePin;
   $("pinForm").addEventListener("submit",async function(e){e.preventDefault();
     var b=$("pinOk");b.disabled=true;$("pinErr").hidden=true;
-    try{var insp=await loginInspector($("pinEm").value.trim(),$("pinIn").value);var cb=pinCb;closePin();if(cb)cb(insp)}
+    try{var insp=await loginInspector($("pinWho").value,$("pinIn").value);var cb=pinCb;closePin();if(cb)cb(insp)}
     catch(er){$("pinErr").textContent=er.message||"No se pudo iniciar sesión.";$("pinErr").hidden=false;b.disabled=false}});
   $("kioForm").addEventListener("submit",async function(e){e.preventDefault();
-    var r=await kio.auth.signInWithPassword({email:$("kEm").value.trim(),password:$("kPw").value});
-    if(r.error){note($("kErr"),"Correo o contraseña incorrectos.","bad");return}
-    $("kPw").value="";$("kioModal").hidden=true;start()});
+    try{
+      var r=await kio.auth.signInWithPassword({email:KIOSCO_EMAIL,password:$("kPw").value});
+      if(r.error){note($("kErr"),"Contraseña incorrecta.","bad");return}
+      $("kPw").value="";$("kErr").hidden=true;$("kioModal").hidden=true;start();
+    }catch(er){note($("kErr"),"No se pudo conectar: "+er.message,"bad")}});
   document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});
   ["hMes","hQ","hMot"].forEach(function(i){$(i).addEventListener("input",renderAdmin)});
   $("hXls").onclick=exportXls;
@@ -1213,7 +1222,7 @@ function bind(){
 async function start(){
   try{
     var s=await kio.auth.getSession();
-    if(!s.data.session){setStatus(false,"Sin sesión");$("kioModal").hidden=false;return}
+    if(!s.data.session){setStatus(false,"Sin sesión");$("kioModal").hidden=false;setTimeout(function(){$("kPw").focus()},50);return}
     await DB.cfg();setStatus(true,"Conectado");
   }catch(e){fail(e)}
 }
