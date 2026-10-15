@@ -150,3 +150,25 @@ create policy audit_leer       on public.audit_log for select to authenticated u
 -- insert into public.usuarios (user_id, nombre, rol)
 -- select id, 'Kiosco', 'kiosco' from auth.users where email = 'kiosco@ejemplo.cl';
 -- =====================================================================
+
+-- =====================================================================
+-- Cambio de contraseñas desde la página (Administración > Configuración).
+-- Solo inspectores. Queda registrado en la bitácora.
+-- =====================================================================
+drop policy if exists usuarios_leer_inspector on public.usuarios;
+create policy usuarios_leer_inspector on public.usuarios for select to authenticated using (public.es_inspector());
+
+create or replace function public.cambiar_clave(p_user uuid, p_nueva text) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare v_nombre text;
+begin
+  if not public.es_inspector() then raise exception 'Sin permiso'; end if;
+  if length(coalesce(p_nueva, '')) < 6 then raise exception 'La contraseña debe tener al menos 6 caracteres'; end if;
+  select nombre into v_nombre from public.usuarios where user_id = p_user;
+  if v_nombre is null then raise exception 'Cuenta no válida'; end if;
+  update auth.users set encrypted_password = crypt(p_nueva, gen_salt('bf')), updated_at = now() where id = p_user;
+  insert into public.audit_log (usuario, tabla, accion, fila_id, despues)
+  values (coalesce(auth.jwt() ->> 'email', 'sistema'), 'usuarios', 'CAMBIO_CLAVE', p_user::text, jsonb_build_object('nombre', v_nombre));
+end $$;
+revoke all on function public.cambiar_clave(uuid, text) from public, anon;
+grant execute on function public.cambiar_clave(uuid, text) to authenticated;

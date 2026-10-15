@@ -822,6 +822,17 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
         <div class="note" id="cMsg" hidden></div>
       </div>
       <div class="sec" style="margin-top:18px">
+        <h2>Cambiar contraseña</h2>
+        <p class="hint">Elija la cuenta (un inspector o el kiosco) y escriba la nueva contraseña, de al menos 6 caracteres. La persona deberá usar la nueva la próxima vez que entre.</p>
+        <form class="row" id="pwForm">
+          <div class="fld"><label for="pwUser">Cuenta</label><select class="in" id="pwUser"></select></div>
+          <div class="fld"><label for="pwNew">Nueva contraseña</label><input class="in" id="pwNew" type="password" autocomplete="new-password" minlength="6" required></div>
+          <div class="fld"><label for="pwRep">Repetir contraseña</label><input class="in" id="pwRep" type="password" autocomplete="new-password" minlength="6" required></div>
+          <button class="btn pri">Cambiar contraseña</button>
+        </form>
+        <div class="note" id="pwMsg" hidden></div>
+      </div>
+      <div class="sec" style="margin-top:18px">
         <h2>Respaldo de datos</h2>
         <p class="hint">Los datos están en Supabase (nube). Puede descargar una copia en JSON cuando quiera.</p>
         <div class="row"><button class="btn" id="bBackup">Descargar respaldo</button></div>
@@ -901,6 +912,8 @@ var DB={
   permDel:function(id){return ok(C.from("perms").delete().eq("id",id))},
   cfg:async function(){var r=await ok(C.from("settings").select("limit_hours").eq("id",1).maybeSingle());if(r)CFG.limit=Number(r.limit_hours)},
   cfgSave:function(h){return ok(C.from("settings").update({limit_hours:h}).eq("id",1))},
+  cuentas:function(){return ok(C.from("usuarios").select("user_id,nombre,rol").order("rol").order("nombre"))},
+  clave:function(id,nueva){return ok(C.rpc("cambiar_clave",{p_user:id,p_nueva:nueva}))},
   audit:function(){return ok(C.from("audit_log").select("*").order("at",{ascending:false}).limit(300))}
 };
 async function monthPerms(rut,ref){return DB.perms({rut:rut,since:monthStart(ref||Date.now())})}
@@ -1103,9 +1116,14 @@ async function renderAdmin(){
         var u=usedMin(rr[1],p.rut),pc=l?Math.min(100,Math.round(u/l*100)):100;
         return "<tr><td class=num>"+esc(fmtRut(p.rut))+"</td><td>"+esc(p.nombre)+"</td><td>"+esc(p.cargo)+"</td><td>"+esc(p.area)+'</td><td><span class="meter'+(u>=l?" full":"")+'"><i style="width:'+pc+'%"></i></span> '+fM(u)+'</td><td><button class="btn sm danger" data-rm="'+esc(p.rut)+'">Quitar</button></td></tr>'}),false);
       $("perTbl").querySelectorAll("[data-rm]").forEach(function(b){armBtn(b,async function(){try{await DB.staffOff(b.dataset.rm);renderAdmin()}catch(e){fail(e)}})});
+    }else if(t==="tCfg"){
+      var cu=await DB.cuentas();if(tab!==t)return;
+      var sel=$("pwUser"),prev=sel.value;
+      sel.innerHTML=cu.map(function(c){return '<option value="'+esc(c.user_id)+'">'+esc(c.nombre)+" ("+(c.rol==="kiosco"?"kiosco":"inspector")+")</option>"}).join("");
+      if(prev)sel.value=prev;
     }else if(t==="tAud"){
       var a=await DB.audit();if(tab!==t)return;
-      var AC={INSERT:"Alta",UPDATE:"Cambio",DELETE:"Eliminación"},TB={perms:"Permiso",staff:"Funcionario",settings:"Parámetros"};
+      var AC={INSERT:"Alta",UPDATE:"Cambio",DELETE:"Eliminación",CAMBIO_CLAVE:"Cambio de contraseña"},TB={perms:"Permiso",staff:"Funcionario",settings:"Parámetros",usuarios:"Cuenta"};
       $("audTbl").innerHTML=table(["Fecha","Usuario","Tabla","Acción","Detalle"],a.map(function(x){
         var d=x.despues||x.antes||{},txt=d.nombre?d.nombre+(d.motivo?" · "+(MOT[d.motivo]||d.motivo):"")+(x.accion==="UPDATE"&&x.despues&&x.despues.t_in&&x.antes&&!x.antes.t_in?" · regreso":"")+(x.accion==="UPDATE"&&d.activo===false?" · dado de baja":""):(d.limit_hours!=null?"Límite "+d.limit_hours+" h":"");
         return "<tr><td class=num>"+fDT(x.at)+"</td><td>"+esc(x.usuario)+"</td><td>"+esc(TB[x.tabla]||x.tabla)+"</td><td>"+esc(AC[x.accion]||x.accion)+"</td><td>"+esc(txt)+"</td></tr>"}),false);
@@ -1214,6 +1232,15 @@ function bind(){
     var lim=parseFloat($("cLim").value);
     if(!(lim>=0)){note($("cMsg"),"Revise las horas.","bad");return}
     try{await DB.cfgSave(lim);CFG.limit=lim;note($("cMsg"),"Parámetros guardados.","ok")}catch(e){note($("cMsg"),"No se pudo guardar: "+e.message,"bad")}};
+  $("pwForm").addEventListener("submit",async function(e){e.preventDefault();
+    var a=$("pwNew").value,b=$("pwRep").value;
+    if(a.length<6){note($("pwMsg"),"La contraseña debe tener al menos 6 caracteres.","bad");return}
+    if(a!==b){note($("pwMsg"),"Las contraseñas no coinciden.","bad");return}
+    try{
+      await DB.clave($("pwUser").value,a);
+      $("pwNew").value="";$("pwRep").value="";
+      note($("pwMsg"),"Contraseña cambiada para "+$("pwUser").selectedOptions[0].textContent+".","ok");
+    }catch(er){note($("pwMsg"),"No se pudo cambiar: "+((er&&er.message)||"error"),"bad")}});
   $("bBackup").onclick=async function(){
     try{var r=await Promise.all([DB.staffAll(),DB.perms({})]);download("respaldo_permisos_"+fD(Date.now())+".json",new Blob([JSON.stringify({staff:r[0],perms:r[1]})],{type:"application/json"}))}catch(e){fail(e)}};
 }
