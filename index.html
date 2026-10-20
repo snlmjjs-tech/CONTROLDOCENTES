@@ -873,7 +873,13 @@ var fM=function(m){return Math.floor(m/60)+"h "+pad2(m%60)+"m"};
 var mKey=function(t){var d=new Date(t);return d.getFullYear()*12+d.getMonth()};
 var monthStart=function(t){var d=new Date(t);return new Date(d.getFullYear(),d.getMonth(),1).getTime()};
 var dayStart=function(t){var d=new Date(t);return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime()};
-var dur=function(p){return Math.max(0,Math.round(((p.in||Date.now())-p.out)/60000))};
+/* Horario laboral por día (getDay: 1=lunes ... 5=viernes), en minutos desde la medianoche.
+   Sábado y domingo no hay jornada. */
+var HORARIO={1:[480,1080],2:[480,1080],3:[480,1050],4:[480,1020],5:[480,810]};
+function jornada(t){var d=new Date(t),h=HORARIO[d.getDay()];if(!h)return null;var b=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();return {ini:b+h[0]*60000,fin:b+h[1]*60000}}
+/* Un permiso cuenta solo dentro de la jornada del día en que salió: termina al regresar o al cierre de ese día, lo que ocurra primero. */
+function workMin(out,end){var j=jornada(out);if(!j)return 0;var a=Math.max(out,j.ini),b=Math.min(end,j.fin);return Math.max(0,Math.round((b-a)/60000))}
+var dur=function(p){return workMin(p.out,p.in||Date.now())};
 var cap=function(s){return s.charAt(0).toUpperCase()+s.slice(1)};
 function cleanRut(s){return String(s||"").toUpperCase().replace(/[^0-9K]/g,"")}
 function fmtRut(c){c=cleanRut(c);if(c.length<2)return c;var b=c.slice(0,-1).replace(/\B(?=(\d{3})+(?!\d))/g,".");return b+"-"+c.slice(-1)}
@@ -888,8 +894,8 @@ var kio=null,adm=null,C=null,admSigned=false;
 var configured=/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)/i.test(SUPABASE_URL)&&SUPABASE_KEY.length>20&&!!window.supabase;
 function mkClient(persist,key){return window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:persist,autoRefreshToken:persist,detectSessionInUrl:false,storageKey:key}})}
 async function ok(p){var r=await p;if(r.error)throw r.error;return r.data}
-function rowToPerm(r){return {id:r.id,rut:r.rut,nombre:r.nombre,cargo:r.cargo||"",area:r.area||"",motivo:r.motivo,detalle:r.detalle||"",destino:r.destino||"",tarea:r.tarea||"",vuelta:r.vuelta||"",out:Date.parse(r.t_out),in:r.t_in?Date.parse(r.t_in):null,exc:!!r.exc,auth:r.auth||""}}
-function permToRow(p){return {rut:p.rut,nombre:p.nombre,cargo:p.cargo||"",area:p.area||"",motivo:p.motivo,detalle:p.detalle||"",destino:p.destino||"",tarea:p.tarea||"",vuelta:p.vuelta||"",t_in:p.in?new Date(p.in).toISOString():null,exc:!!p.exc,auth:p.auth||""}}
+function rowToPerm(r){return {id:r.id,rut:r.rut,nombre:r.nombre,cargo:r.cargo||"",area:r.area||"",motivo:r.motivo,detalle:r.detalle||"",destino:r.destino||"",tarea:r.tarea||"",vuelta:r.vuelta||"",out:Date.parse(r.t_out),in:r.t_in?Date.parse(r.t_in):null,exc:!!r.exc,auth:r.auth||"",cierreAuto:!!r.cierre_auto}}
+function permToRow(p){return {rut:p.rut,nombre:p.nombre,cargo:p.cargo||"",area:p.area||"",motivo:p.motivo,detalle:p.detalle||"",destino:p.destino||"",tarea:p.tarea||"",vuelta:p.vuelta||"",t_in:p.in?new Date(p.in).toISOString():null,exc:!!p.exc,auth:p.auth||"",cierre_auto:!!p.cierreAuto}}
 var DB={
   staff:function(rut){return ok(C.from("staff").select("*").eq("rut",rut).eq("activo",true).maybeSingle())},
   staffAll:function(){return ok(C.from("staff").select("*").eq("activo",true).order("nombre").range(0,4999))},
@@ -916,6 +922,16 @@ var DB={
   clave:function(id,nueva){return ok(C.rpc("cambiar_clave",{p_user:id,p_nueva:nueva}))},
   audit:function(){return ok(C.from("audit_log").select("*").order("at",{ascending:false}).limit(300))}
 };
+/* Permisos que quedaron sin regreso en un día anterior se cierran al término de la jornada de ese día. */
+async function cerrarVencidos(list){
+  var hoy=dayStart(Date.now()),n=0;
+  for(var i=0;i<list.length;i++){
+    var p=list[i];if(p.in||dayStart(p.out)>=hoy)continue;
+    var j=jornada(p.out);p.in=Math.max(p.out,j?j.fin:p.out);p.cierreAuto=true;
+    Object.assign(p,await DB.permSave(p));n++;
+  }
+  return n;
+}
 async function monthPerms(rut,ref){return DB.perms({rut:rut,since:monthStart(ref||Date.now())})}
 function setStatus(on,txt){$("dbDot").className="dot "+(on?"on":"off");$("dbTxt").textContent=txt}
 function authErr(e){return e&&(e.code==="PGRST301"||/jwt|not authenticated|refresh token/i.test(e.message||""))}
@@ -966,7 +982,8 @@ async function submitRut(){
     if(!p){busy=false;m.textContent="RUT no registrado en el sistema.";$("bNuevoK").hidden=false;return}
     cur=p;rut=c;
     var r=await Promise.all([monthPerms(c),DB.perms({rut:c,open:true})]);
-    curOpen=r[1][0]||null;busy=false;m.textContent="";
+    await cerrarVencidos(r[1]);
+    curOpen=r[1].filter(function(x){return !x.in})[0]||null;busy=false;m.textContent="";
     if(curOpen)showRegreso();else showMotivo(r[0]);
   }catch(e){busy=false;fail(e)}
 }
@@ -1070,8 +1087,13 @@ function bumpAdm(){clearTimeout(admIdle);admIdle=setTimeout(exitAdmin,10*60000)}
 function exitAdmin(){clearTimeout(admIdle);$("admin").hidden=true;$("kiosk").hidden=false;C=kio;INSP=null;reset()}
 function setTab(t){tab=t;document.querySelectorAll(".tabs button").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.tab===t))});TABS.forEach(function(x){$(x).hidden=x!==t});renderAdmin()}
 function pill(p){return '<span class="pill '+PILL[p.motivo]+'">'+MOT[p.motivo]+"</span>"}
+function regresoCell(p){
+  if(!p.in)return '<span class="pill p-out">Fuera</span>';
+  if(p.cierreAuto)return '<span class="pill p-per" title="Sin regreso registrado: se cerró al término de la jornada">Sin regreso</span> <small>cerró '+fT(p.in)+"</small>";
+  return dayStart(p.in)!==dayStart(p.out)?fDT(p.in)+' <small>(otro día)</small>':fT(p.in);
+}
 function permRow(p){
-  return "<tr><td>"+esc(p.nombre)+"<br><small>"+esc(fmtRut(p.rut))+"</small></td><td>"+pill(p)+"</td><td class=num>"+fDT(p.out)+"</td><td class=num>"+(p.in?fT(p.in):'<span class="pill p-out">Fuera</span>')+"</td><td class=num>"+fM(dur(p))+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.exc?' <span class="pill p-exc">Excede</span>':"")+(p.auth?" <small>(autorizó: "+esc(p.auth)+")</small>":"")+"</td><td>"+(p.in?"":'<button class="btn sm" data-close="'+p.id+'">Cerrar</button> ')+'<button class="btn sm danger" data-del="'+p.id+'">Eliminar</button></td></tr>';
+  return "<tr><td>"+esc(p.nombre)+"<br><small>"+esc(fmtRut(p.rut))+"</small></td><td>"+pill(p)+"</td><td class=num>"+fDT(p.out)+"</td><td class=num>"+regresoCell(p)+"</td><td class=num>"+fM(dur(p))+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.exc?' <span class="pill p-exc">Excede</span>':"")+(p.auth?" <small>(autorizó: "+esc(p.auth)+")</small>":"")+"</td><td>"+(p.in?"":'<button class="btn sm" data-close="'+p.id+'">Cerrar</button> ')+'<button class="btn sm danger" data-del="'+p.id+'">Eliminar</button></td></tr>';
 }
 function table(head,rows,extra){
   if(!rows.length)return '<div class="empty">Sin registros.</div>';
@@ -1098,6 +1120,7 @@ async function renderAdmin(){
   bumpAdm();
   var t=tab;
   try{
+    if(t==="tHoy"||t==="tHist")await cerrarVencidos(await DB.perms({open:true}));
     if(t==="tHoy"){
       var r=await Promise.all([DB.perms({since:dayStart(Date.now())}),DB.perms({open:true})]);
       var seen={},h=remember(r[0].concat(r[1])).filter(function(p){return seen[p.id]?false:(seen[p.id]=true)}).sort(function(a,b){return b.out-a.out});
@@ -1125,7 +1148,7 @@ async function renderAdmin(){
       var a=await DB.audit();if(tab!==t)return;
       var AC={INSERT:"Alta",UPDATE:"Cambio",DELETE:"Eliminación",CAMBIO_CLAVE:"Cambio de contraseña"},TB={perms:"Permiso",staff:"Funcionario",settings:"Parámetros",usuarios:"Cuenta"};
       $("audTbl").innerHTML=table(["Fecha","Usuario","Tabla","Acción","Detalle"],a.map(function(x){
-        var d=x.despues||x.antes||{},txt=d.nombre?d.nombre+(d.motivo?" · "+(MOT[d.motivo]||d.motivo):"")+(x.accion==="UPDATE"&&x.despues&&x.despues.t_in&&x.antes&&!x.antes.t_in?" · regreso":"")+(x.accion==="UPDATE"&&d.activo===false?" · dado de baja":""):(d.limit_hours!=null?"Límite "+d.limit_hours+" h":"");
+        var d=x.despues||x.antes||{},txt=d.nombre?d.nombre+(d.motivo?" · "+(MOT[d.motivo]||d.motivo):"")+(x.accion==="UPDATE"&&x.despues&&x.despues.t_in&&x.antes&&!x.antes.t_in?" · regreso":"")+(x.accion==="UPDATE"&&d.activo===false?" · dado de baja":"")+(x.accion==="UPDATE"&&x.despues&&x.despues.cierre_auto&&!(x.antes&&x.antes.cierre_auto)?" · cierre automático":""):(d.limit_hours!=null?"Límite "+d.limit_hours+" h":"");
         return "<tr><td class=num>"+fDT(x.at)+"</td><td>"+esc(x.usuario)+"</td><td>"+esc(TB[x.tabla]||x.tabla)+"</td><td>"+esc(AC[x.accion]||x.accion)+"</td><td>"+esc(txt)+"</td></tr>"}),false);
     }
   }catch(e){fail(e)}
@@ -1152,7 +1175,7 @@ function importFile(file){
 }
 async function exportXls(){
   try{
-    var f=histFilter(await DB.perms(histRange())).map(function(p){return {RUT:fmtRut(p.rut),Nombre:p.nombre,Cargo:p.cargo,Motivo:MOT[p.motivo],Fecha:fD(p.out),Salida:fT(p.out),Regreso:p.in?fT(p.in):"",Minutos:dur(p),Destino:p.destino||"",Detalle:p.tarea||p.detalle||"",Excede:p.exc?"Sí":"",Autoriza:p.auth||""}});
+    var f=histFilter(await DB.perms(histRange())).map(function(p){return {RUT:fmtRut(p.rut),Nombre:p.nombre,Cargo:p.cargo,Motivo:MOT[p.motivo],Fecha:fD(p.out),Salida:fT(p.out),Regreso:p.in&&!p.cierreAuto?fT(p.in):"",Cierre:p.cierreAuto?"Automático (sin regreso)":"",Minutos:dur(p),Destino:p.destino||"",Detalle:p.tarea||p.detalle||"",Excede:p.exc?"Sí":"",Autoriza:p.auth||""}});
     var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(f),"Permisos");
     XLSX.writeFile(wb,"permisos_"+$("hMes").value+".xlsx");
   }catch(e){fail(e)}
