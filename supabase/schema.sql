@@ -34,6 +34,7 @@ create table if not exists public.perms (
   t_in       timestamptz,
   exc        boolean not null default false,
   auth       text not null default '',
+  cierre_auto boolean not null default false,
   created_at timestamptz not null default now()
 );
 create index if not exists perms_t_out_idx on public.perms (t_out desc);
@@ -68,12 +69,18 @@ language sql stable security definer set search_path = public as
 $$ select exists (select 1 from public.usuarios where user_id = auth.uid() and rol = 'inspector') $$;
 
 -- La hora de regreso la fija siempre el servidor (no el reloj del kiosco).
+-- Excepción: el cierre automático de un permiso sin regreso (cierre_auto) trae
+-- la hora de término de la jornada, que se acepta si está entre la salida y ahora.
 create or replace function public.fijar_regreso() returns trigger
 language plpgsql as $$
 begin
   new.t_out := old.t_out;
-  if old.t_in is null and new.t_in is not null then new.t_in := now();
-  elsif old.t_in is not null then new.t_in := old.t_in; end if;
+  if old.t_in is not null then
+    new.t_in := old.t_in; new.cierre_auto := old.cierre_auto;
+  elsif new.t_in is not null then
+    if new.cierre_auto then new.t_in := least(greatest(new.t_in, old.t_out), now());
+    else new.t_in := now(); new.cierre_auto := false; end if;
+  end if;
   return new;
 end $$;
 drop trigger if exists perms_fijar_regreso on public.perms;
@@ -172,3 +179,20 @@ begin
 end $$;
 revoke all on function public.cambiar_clave(uuid, text) from public, anon;
 grant execute on function public.cambiar_clave(uuid, text) to authenticated;
+
+-- =====================================================================
+-- Migración para bases ya creadas: horario laboral / cierre automático.
+-- =====================================================================
+alter table public.perms add column if not exists cierre_auto boolean not null default false;
+create or replace function public.fijar_regreso() returns trigger
+language plpgsql as $$
+begin
+  new.t_out := old.t_out;
+  if old.t_in is not null then
+    new.t_in := old.t_in; new.cierre_auto := old.cierre_auto;
+  elsif new.t_in is not null then
+    if new.cierre_auto then new.t_in := least(greatest(new.t_in, old.t_out), now());
+    else new.t_in := now(); new.cierre_auto := false; end if;
+  end if;
+  return new;
+end $$;
