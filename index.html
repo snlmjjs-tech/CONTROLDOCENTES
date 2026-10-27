@@ -569,6 +569,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .btn.danger{color:var(--bad);border-color:var(--bad)}
 .btn.danger.arm{background:var(--bad);color:#fff}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:5px}
+.tbl-top{overflow-x:auto;overflow-y:hidden;height:16px;margin-bottom:4px}
+.tbl-top>div{height:1px}
+.tbl-wrap td.act,.tbl-wrap th.act{position:sticky;right:0;box-shadow:-8px 0 8px -8px rgba(0,0,0,.45)}
+.tbl-wrap td.act{background:var(--surface)}
+.tbl-wrap th.act{background:var(--chip)}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--chip);position:sticky;top:0}
@@ -1111,11 +1116,11 @@ function regresoCell(p){
   return dayStart(p.in)!==dayStart(p.out)?fDT(p.in)+' <small>(otro día)</small>':fT(p.in);
 }
 function permRow(p){
-  return "<tr><td>"+esc(p.nombre)+"<br><small>"+esc(fmtRut(p.rut))+"</small></td><td>"+pill(p)+"</td><td class=num>"+fDT(p.out)+"</td><td class=num>"+regresoCell(p)+"</td><td class=num>"+fM(dur(p))+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.exc?' <span class="pill p-exc">Excede</span>':"")+(p.auth?" <small>(autorizó: "+esc(p.auth)+")</small>":"")+"</td><td>"+'<button class="btn sm" data-edit="'+p.id+'">Editar</button> '+(p.in?"":'<button class="btn sm" data-close="'+p.id+'">Cerrar</button> ')+'<button class="btn sm danger" data-del="'+p.id+'">Eliminar</button></td></tr>';
+  return "<tr><td>"+esc(p.nombre)+"<br><small>"+esc(fmtRut(p.rut))+"</small></td><td>"+pill(p)+"</td><td class=num>"+fDT(p.out)+"</td><td class=num>"+regresoCell(p)+"</td><td class=num>"+fM(dur(p))+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.exc?' <span class="pill p-exc">Excede</span>':"")+(p.auth?" <small>(autorizó: "+esc(p.auth)+")</small>":"")+'</td><td class="act">'+'<button class="btn sm" data-edit="'+p.id+'">Editar</button> '+(p.in?"":'<button class="btn sm" data-close="'+p.id+'">Cerrar</button> ')+'<button class="btn sm danger" data-del="'+p.id+'">Eliminar</button></td></tr>';
 }
 function table(head,rows,extra){
   if(!rows.length)return '<div class="empty">Sin registros.</div>';
-  return '<div class="tbl-wrap"><table><thead><tr>'+head.map(function(h){return "<th>"+h+"</th>"}).join("")+(extra?"<th></th>":"")+"</tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
+  return '<div class="tbl-wrap"><table><thead><tr>'+head.map(function(h){return "<th>"+h+"</th>"}).join("")+(extra?'<th class="act"></th>':"")+"</tr></thead><tbody>"+rows.join("")+"</tbody></table></div>";
 }
 var PH=["Funcionario","Motivo","Salida","Regreso","Duración","Detalle"];
 var cache={};
@@ -1213,8 +1218,21 @@ async function renderAdmin(){
         var d=x.despues||x.antes||{},txt=d.nombre?d.nombre+(d.motivo?" · "+(MOT[d.motivo]||d.motivo):"")+(x.accion==="UPDATE"&&x.despues&&x.despues.t_in&&x.antes&&!x.antes.t_in?" · regreso":"")+(x.accion==="UPDATE"&&d.activo===false?" · dado de baja":"")+(x.accion==="UPDATE"&&x.despues&&x.despues.cierre_auto&&!(x.antes&&x.antes.cierre_auto)?" · cierre automático":"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&(x.antes.motivo!==x.despues.motivo||x.antes.detalle!==x.despues.detalle||x.antes.destino!==x.despues.destino||x.antes.tarea!==x.despues.tarea)?" · editado"+(x.antes.motivo!==x.despues.motivo?": "+(MOT[x.antes.motivo]||x.antes.motivo)+" → "+(MOT[x.despues.motivo]||x.despues.motivo):"")+(x.antes.detalle!==x.despues.detalle?" (detalle: «"+(x.antes.detalle||"")+"» → «"+(x.despues.detalle||"")+"»)":""):"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&(x.antes.t_out!==x.despues.t_out||(x.antes.t_in&&x.antes.t_in!==x.despues.t_in))?" · horario corregido: "+fDT(x.antes.t_out)+(x.antes.t_in?"–"+fT(x.antes.t_in):"")+" → "+fDT(x.despues.t_out)+(x.despues.t_in?"–"+fT(x.despues.t_in):""):"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&x.antes.exc!==x.despues.exc?" · exceso "+(x.despues.exc?"marcado":"quitado"):""):(d.limit_hours!=null?"Límite "+d.limit_hours+" h":"");
         return "<tr><td class=num>"+fDT(x.at)+"</td><td>"+esc(x.usuario)+"</td><td>"+esc(TB[x.tabla]||x.tabla)+"</td><td>"+esc(AC[x.accion]||x.accion)+"</td><td>"+esc(txt)+"</td></tr>"}),false);
     }
+    ["hoyTbl","histTbl","perTbl","audTbl"].forEach(function(id){topScroll($(id))});
   }catch(e){fail(e)}
 }
+/* Barra de desplazamiento horizontal sobre la tabla, para no tener que bajar hasta el final de la lista. */
+function sizeTop(t){t._i.style.width=t._w.scrollWidth+"px";t.hidden=t._w.scrollWidth<=t._w.clientWidth+1}
+function topScroll(box){
+  var w=box&&box.querySelector(".tbl-wrap");if(!w)return;
+  box.querySelectorAll(".tbl-top").forEach(function(o){o.remove()});
+  var t=document.createElement("div");t.className="tbl-top";var i=document.createElement("div");t.appendChild(i);
+  t._w=w;t._i=i;w.parentNode.insertBefore(t,w);
+  t.onscroll=function(){if(w.scrollLeft!==t.scrollLeft)w.scrollLeft=t.scrollLeft};
+  w.onscroll=function(){if(t.scrollLeft!==w.scrollLeft)t.scrollLeft=w.scrollLeft};
+  sizeTop(t);
+}
+window.addEventListener("resize",function(){document.querySelectorAll(".tbl-top").forEach(sizeTop)});
 function note(el,t,cls){el.hidden=false;el.className="note "+(cls||"");el.textContent=t}
 function staffRow(r){
   var c=cleanRut(r.rut);if(!rutOk(c)||!String(r.nombre||"").trim())return null;
