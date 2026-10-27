@@ -569,6 +569,36 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .btn.danger{color:var(--bad);border-color:var(--bad)}
 .btn.danger.arm{background:var(--bad);color:#fff}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:5px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.kpi .l{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.kpi .v{font-family:var(--f-display);font-size:34px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:13px;color:var(--muted)}
+.kpi.bad .v{color:var(--bad)}
+.cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18px}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+.bars{position:relative;display:flex;align-items:flex-end;gap:10px;height:190px;padding:6px 4px 0;border-bottom:1px solid var(--line)}
+.bar-col{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.bar-col .bv{font-size:12px;color:var(--fg);font-variant-numeric:tabular-nums;margin-bottom:3px;white-space:nowrap}
+.bar-col .b{width:100%;max-width:46px;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px}
+.bar-col .b.over{background:var(--bad)}
+.bar-lbl{display:flex;gap:10px;padding:4px 4px 0}
+.bar-lbl span{flex:1;min-width:0;text-align:center;font-size:12px;color:var(--muted)}
+.limit{position:absolute;left:0;right:0;border-top:2px dashed var(--muted);pointer-events:none}
+.limit span{position:absolute;right:0;top:-18px;font-size:12px;color:var(--muted);background:var(--surface);padding:0 4px}
+.hrow{display:grid;grid-template-columns:64px 1fr 40px;align-items:center;gap:8px;font-size:14px}
+.hrow .trk{height:12px;background:var(--chip);border-radius:0 4px 4px 0;overflow:hidden}
+.hrow .trk i{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
+.hrow b{text-align:right;font-variant-numeric:tabular-nums}
+.lnk{color:var(--accent);cursor:pointer;text-decoration:underline;background:none;border:0;font:inherit;padding:0}
+@media print{
+  body{background:#fff}
+  .a-top,.tabs,.no-print,.tbl-top,.k-foot,.btn{display:none!important}
+  .sec,.kpi{break-inside:avoid;border-color:#bbb}
+  .bar-col .b,.hrow .trk i{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .tbl-wrap{overflow:visible}
+  .tbl-wrap td.act,.tbl-wrap th.act{position:static}
+}
 .tbl-top{overflow-x:auto;overflow-y:hidden;height:16px;margin-bottom:4px}
 .tbl-top>div{height:1px}
 .tbl-wrap td.act,.tbl-wrap th.act{position:sticky;right:0;box-shadow:-8px 0 8px -8px rgba(0,0,0,.45)}
@@ -666,15 +696,15 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
       <div class="motivos">
         <button class="mbtn" data-m="personal" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
-          <span class="t">Personal</span><span class="d">Trámite o asunto particular</span></button>
+          <span class="t">Personal</span><span class="d">Trámite o asunto particular. Descuenta del tiempo mensual</span></button>
         <button class="mbtn" data-m="cometido" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>
-          <span class="t">Cometido laboral</span><span class="d">Gestión en representación del establecimiento</span></button>
+          <span class="t">Cometido laboral</span><span class="d">Gestión en representación del establecimiento. No descuenta tiempo</span></button>
         <button class="mbtn" data-m="gremial" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c.8-3 3-5 6-5s5.2 2 6 5M14.5 15.3c.5-.2 1-.3 1.5-.3 3 0 5.2 2 6 5"/></svg>
           <span class="t">Horas gremiales</span><span class="d">Actividad sindical o gremial. No descuenta tiempo</span></button>
       </div>
-      <div class="gre-note" id="greNote" hidden>Las horas gremiales están liberadas durante el mes: se registran, pero no se descuentan del tiempo de control interno.</div>
+      <div class="gre-note" id="greNote" hidden>Las horas gremiales y los cometidos se registran, pero no se descuentan del tiempo mensual de permisos personales.</div>
       <input class="k-in" id="kDetalle" maxlength="120" placeholder="Detalle (opcional)">
       <div class="k-grid" id="comFields" hidden>
         <div class="full"><label class="k-lbl" for="cDestino">Destino / institución *</label><input class="k-in" id="cDestino" maxlength="100" placeholder="Ej.: Oficinas SLEP Colchagua"></div>
@@ -788,6 +818,7 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
     <button role="tab" data-tab="tHoy" aria-selected="true">Hoy</button>
     <button role="tab" data-tab="tHist" aria-selected="false">Historial</button>
     <button role="tab" data-tab="tPer" aria-selected="false">Funcionarios</button>
+    <button role="tab" data-tab="tInf" aria-selected="false">Informe</button>
     <button role="tab" data-tab="tAud" aria-selected="false">Auditoría</button>
     <button role="tab" data-tab="tCfg" aria-selected="false">Configuración</button>
   </nav>
@@ -827,6 +858,24 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
       <div class="sec" style="margin-top:18px"><h2>Funcionarios registrados</h2><div id="perTbl"></div></div>
     </section>
 
+    <section id="tInf" hidden>
+      <div class="sec no-print">
+        <h2>Informe estadístico</h2>
+        <div class="row">
+          <div class="fld"><label for="iEmp">Funcionario</label><select class="in" id="iEmp"><option value="">Todos (resumen general)</option></select></div>
+          <div class="fld"><label for="iDesde">Desde</label><input class="in" type="date" id="iDesde"></div>
+          <div class="fld"><label for="iHasta">Hasta</label><input class="in" type="date" id="iHasta"></div>
+          <button class="btn" data-rango="mes">Este mes</button>
+          <button class="btn" data-rango="mesant">Mes anterior</button>
+          <button class="btn" data-rango="anio">Este año</button>
+          <button class="btn" data-rango="todo">Todo</button>
+        </div>
+        <div class="row"><button class="btn pri" id="iXls">Exportar Excel</button><button class="btn" id="iPrint">Imprimir / guardar PDF</button></div>
+        <p class="hint">Solo los permisos <b>personales</b> descuentan del tiempo mensual. Los cometidos laborales y las horas gremiales se muestran aparte y no descuentan. Las duraciones cuentan solo dentro del horario laboral.</p>
+      </div>
+      <div id="infOut" style="display:flex;flex-direction:column;gap:18px;margin-top:18px"></div>
+    </section>
+
     <section id="tAud" hidden>
       <div class="sec">
         <h2>Bitácora de auditoría</h2>
@@ -839,7 +888,7 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
       <div class="sec">
         <h2>Parámetros</h2>
         <div class="row">
-          <div class="fld"><label for="cLim">Tiempo mensual autorizado (horas)</label><input class="in" id="cLim" type="number" min="0" step="0.5"></div>
+          <div class="fld"><label for="cLim">Tiempo mensual de permisos personales (horas)</label><input class="in" id="cLim" type="number" min="0" step="0.5"></div>
           <button class="btn pri" id="cSave">Guardar</button>
         </div>
         <div class="note" id="cMsg" hidden></div>
@@ -909,7 +958,7 @@ function fmtRut(c){c=cleanRut(c);if(c.length<2)return c;var b=c.slice(0,-1).repl
 function rutOk(c){c=cleanRut(c);if(c.length<2||c.length>9)return false;var b=c.slice(0,-1);if(/\D/.test(b))return false;var sum=0,m=2;for(var i=b.length-1;i>=0;i--){sum+=+b[i]*m;m=m===7?2:m+1}var r=11-sum%11,dv=r===11?"0":r===10?"K":String(r);return dv===c.slice(-1)}
 function download(name,blob){var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500)}
 function armBtn(b,fn){var t;b.addEventListener("click",function(){if(b.classList.contains("arm")){clearTimeout(t);b.classList.remove("arm");b.textContent=b.dataset.t;fn()}else{b.dataset.t=b.textContent;b.classList.add("arm");b.textContent="¿Confirmar?";t=setTimeout(function(){b.classList.remove("arm");b.textContent=b.dataset.t},4000)}})}
-function usedMin(perms,rut,ref){var k=mKey(ref||Date.now());return perms.filter(function(p){return p.rut===rut&&p.motivo!=="gremial"&&mKey(p.out)===k}).reduce(function(a,p){return a+dur(p)},0)}
+function usedMin(perms,rut,ref){var k=mKey(ref||Date.now());return perms.filter(function(p){return p.rut===rut&&p.motivo==="personal"&&mKey(p.out)===k}).reduce(function(a,p){return a+dur(p)},0)}
 var limMin=function(){return Math.round(CFG.limit*60)};
 
 /* ---------- Supabase ---------- */
@@ -1020,11 +1069,11 @@ function showMotivo(ps){
   $("pNombre").textContent=cur.nombre;$("pCargo").textContent=[cur.cargo,cur.area].filter(Boolean).join(" · ");
   var u=usedMin(ps,cur.rut),l=limMin(),full=u>=l&&!unlockedBy,pc=l?Math.min(100,Math.round(u/l*100)):100;
   $("pSaldo").className="saldo-k"+(u>=l?" full":"");
-  $("pSaldo").innerHTML='<span>Tiempo utilizado este mes</span><span class="big">'+fM(u)+" / "+fM(l)+'</span><div class="bar"><i style="width:'+pc+'%"></i></div>';
+  $("pSaldo").innerHTML='<span>Permisos personales usados este mes</span><span class="big">'+fM(u)+" / "+fM(l)+'</span><div class="bar"><i style="width:'+pc+'%"></i></div>';
   $("pBlock").hidden=!full;
-  $("pBlockTxt").textContent="Ya utilizó el tiempo autorizado del mes. Puede descargar el permiso administrativo o pedir el desbloqueo a Inspectoría.";
+  $("pBlockTxt").textContent="Ya utilizó el tiempo autorizado del mes para permisos personales. Puede descargar el permiso administrativo o pedir el desbloqueo a Inspectoría. Los cometidos y las horas gremiales siguen disponibles.";
   $("pBlockMsg").textContent="";
-  document.querySelectorAll(".mbtn").forEach(function(b){b.setAttribute("aria-pressed","false");b.disabled=full&&b.dataset.m!=="gremial"});
+  document.querySelectorAll(".mbtn").forEach(function(b){b.setAttribute("aria-pressed","false");b.disabled=full&&b.dataset.m==="personal"});
   $("greNote").hidden=true;$("comFields").hidden=true;$("kDetalle").value="";
   ["cDestino","cTarea","cVuelta"].forEach(function(i){$(i).value=""});
   $("bSalida").disabled=true;show("stMotivo");
@@ -1056,7 +1105,7 @@ async function doRegreso(){
     curOpen.in=Date.now();
     curOpen=await DB.permSave(curOpen);
     var ps=await DB.perms({rut:cur.rut,since:monthStart(curOpen.out)});
-    var exc=curOpen.motivo!=="gremial"&&usedMin(ps,cur.rut,curOpen.out)>limMin();
+    var exc=curOpen.motivo==="personal"&&usedMin(ps,cur.rut,curOpen.out)>limMin();
     if(exc){curOpen.exc=true;curOpen=await DB.permSave(curOpen)}
     busy=false;
     done("Regreso registrado",fT(curOpen.in),cur.nombre+" · duración "+fM(dur(curOpen)),exc,false);
@@ -1105,7 +1154,7 @@ async function loginInspector(email,pw){
 
 /* ---------- Administración ---------- */
 var tab="tHoy",INSP=null,admIdle=null;
-var TABS=["tHoy","tHist","tPer","tAud","tCfg"];
+var TABS=["tHoy","tHist","tPer","tInf","tAud","tCfg"];
 function bumpAdm(){clearTimeout(admIdle);admIdle=setTimeout(exitAdmin,10*60000)}
 function exitAdmin(){clearTimeout(admIdle);$("admin").hidden=true;$("kiosk").hidden=false;C=kio;INSP=null;reset()}
 function setTab(t){tab=t;document.querySelectorAll(".tabs button").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.tab===t))});TABS.forEach(function(x){$(x).hidden=x!==t});renderAdmin()}
@@ -1116,7 +1165,7 @@ function regresoCell(p){
   return dayStart(p.in)!==dayStart(p.out)?fDT(p.in)+' <small>(otro día)</small>':fT(p.in);
 }
 function permRow(p){
-  return "<tr><td>"+esc(p.nombre)+"<br><small>"+esc(fmtRut(p.rut))+"</small></td><td>"+pill(p)+"</td><td class=num>"+fDT(p.out)+"</td><td class=num>"+regresoCell(p)+"</td><td class=num>"+fM(dur(p))+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.exc?' <span class="pill p-exc">Excede</span>':"")+(p.auth?" <small>(autorizó: "+esc(p.auth)+")</small>":"")+'</td><td class="act">'+'<button class="btn sm" data-edit="'+p.id+'">Editar</button> '+(p.in?"":'<button class="btn sm" data-close="'+p.id+'">Cerrar</button> ')+'<button class="btn sm danger" data-del="'+p.id+'">Eliminar</button></td></tr>';
+  return "<tr><td>"+esc(p.nombre)+"<br><small>"+esc(fmtRut(p.rut))+"</small></td><td>"+pill(p)+"</td><td class=num>"+fDT(p.out)+"</td><td class=num>"+regresoCell(p)+"</td><td class=num>"+fM(dur(p))+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.exc&&p.motivo==="personal"?' <span class="pill p-exc">Excede</span>':"")+(p.auth?" <small>(autorizó: "+esc(p.auth)+")</small>":"")+'</td><td class="act">'+'<button class="btn sm" data-edit="'+p.id+'">Editar</button> '+(p.in?"":'<button class="btn sm" data-close="'+p.id+'">Cerrar</button> ')+'<button class="btn sm danger" data-del="'+p.id+'">Eliminar</button></td></tr>';
 }
 function table(head,rows,extra){
   if(!rows.length)return '<div class="empty">Sin registros.</div>';
@@ -1163,11 +1212,11 @@ async function saveEdit(){
   $("eOk").disabled=true;
   try{
     var saved=await DB.permSave(np,true);
-    var cambioGremial=old.motivo!==m&&(old.motivo==="gremial"||m==="gremial");
+    var cambioGremial=(old.motivo==="personal")!==(m==="personal");
     if(saved.in&&(horasCambiaron||cambioGremial)){
       /* El exceso depende de cuánto cuenta el permiso en el mes. */
       var exc=false;
-      if(m!=="gremial"){var ps=await DB.perms({rut:saved.rut,since:monthStart(saved.out)});exc=usedMin(ps,saved.rut,saved.out)>limMin()}
+      if(m==="personal"){var ps=await DB.perms({rut:saved.rut,since:monthStart(saved.out)});exc=usedMin(ps,saved.rut,saved.out)>limMin()}
       if(exc!==saved.exc){saved.exc=exc;saved=await DB.permSave(saved)}
     }
     closeEdit();renderAdmin();
@@ -1191,7 +1240,7 @@ async function renderAdmin(){
     if(t==="tHoy"){
       var r=await Promise.all([DB.perms({since:dayStart(Date.now())}),DB.perms({open:true})]);
       var seen={},h=remember(r[0].concat(r[1])).filter(function(p){return seen[p.id]?false:(seen[p.id]=true)}).sort(function(a,b){return b.out-a.out});
-      var st5=[["Salidas hoy",h.length],["Fuera ahora",h.filter(function(p){return !p.in}).length],["Cometidos",h.filter(function(p){return p.motivo==="cometido"}).length],["Horas gremiales",h.filter(function(p){return p.motivo==="gremial"}).length],["Excedidos",h.filter(function(p){return p.exc}).length]];
+      var st5=[["Salidas hoy",h.length],["Fuera ahora",h.filter(function(p){return !p.in}).length],["Cometidos",h.filter(function(p){return p.motivo==="cometido"}).length],["Horas gremiales",h.filter(function(p){return p.motivo==="gremial"}).length],["Excedidos",h.filter(function(p){return p.exc&&p.motivo==="personal"}).length]];
       if(tab!==t)return;
       $("stats").innerHTML=st5.map(function(s,i){return '<div class="stat'+(i===4&&s[1]?" hot":"")+'"><div class="l">'+s[0]+'</div><div class="v">'+s[1]+"</div></div>"}).join("");
       $("hoyTbl").innerHTML=table(PH,h.map(permRow),true);bindRows($("hoyTbl"));
@@ -1202,7 +1251,7 @@ async function renderAdmin(){
     }else if(t==="tPer"){
       var rr=await Promise.all([DB.staffAll(),DB.perms({since:monthStart(Date.now())})]),l=limMin();
       if(tab!==t)return;
-      $("perTbl").innerHTML=table(["RUT","Nombre","Cargo","Área","Uso del mes",""],rr[0].map(function(p){
+      $("perTbl").innerHTML=table(["RUT","Nombre","Cargo","Área","Personales del mes",""],rr[0].map(function(p){
         var u=usedMin(rr[1],p.rut),pc=l?Math.min(100,Math.round(u/l*100)):100;
         return "<tr><td class=num>"+esc(fmtRut(p.rut))+"</td><td>"+esc(p.nombre)+"</td><td>"+esc(p.cargo)+"</td><td>"+esc(p.area)+'</td><td><span class="meter'+(u>=l?" full":"")+'"><i style="width:'+pc+'%"></i></span> '+fM(u)+'</td><td><button class="btn sm danger" data-rm="'+esc(p.rut)+'">Quitar</button></td></tr>'}),false);
       $("perTbl").querySelectorAll("[data-rm]").forEach(function(b){armBtn(b,async function(){try{await DB.staffOff(b.dataset.rm);renderAdmin()}catch(e){fail(e)}})});
@@ -1211,6 +1260,8 @@ async function renderAdmin(){
       var sel=$("pwUser"),prev=sel.value;
       sel.innerHTML=cu.map(function(c){return '<option value="'+esc(c.user_id)+'">'+esc(c.nombre)+" ("+(c.rol==="kiosco"?"kiosco":"inspector")+")</option>"}).join("");
       if(prev)sel.value=prev;
+    }else if(t==="tInf"){
+      await renderInforme();if(tab!==t)return;
     }else if(t==="tAud"){
       var a=await DB.audit();if(tab!==t)return;
       var AC={INSERT:"Alta",UPDATE:"Cambio",DELETE:"Eliminación",CAMBIO_CLAVE:"Cambio de contraseña"},TB={perms:"Permiso",staff:"Funcionario",settings:"Parámetros",usuarios:"Cuenta"};
@@ -1218,7 +1269,7 @@ async function renderAdmin(){
         var d=x.despues||x.antes||{},txt=d.nombre?d.nombre+(d.motivo?" · "+(MOT[d.motivo]||d.motivo):"")+(x.accion==="UPDATE"&&x.despues&&x.despues.t_in&&x.antes&&!x.antes.t_in?" · regreso":"")+(x.accion==="UPDATE"&&d.activo===false?" · dado de baja":"")+(x.accion==="UPDATE"&&x.despues&&x.despues.cierre_auto&&!(x.antes&&x.antes.cierre_auto)?" · cierre automático":"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&(x.antes.motivo!==x.despues.motivo||x.antes.detalle!==x.despues.detalle||x.antes.destino!==x.despues.destino||x.antes.tarea!==x.despues.tarea)?" · editado"+(x.antes.motivo!==x.despues.motivo?": "+(MOT[x.antes.motivo]||x.antes.motivo)+" → "+(MOT[x.despues.motivo]||x.despues.motivo):"")+(x.antes.detalle!==x.despues.detalle?" (detalle: «"+(x.antes.detalle||"")+"» → «"+(x.despues.detalle||"")+"»)":""):"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&(x.antes.t_out!==x.despues.t_out||(x.antes.t_in&&x.antes.t_in!==x.despues.t_in))?" · horario corregido: "+fDT(x.antes.t_out)+(x.antes.t_in?"–"+fT(x.antes.t_in):"")+" → "+fDT(x.despues.t_out)+(x.despues.t_in?"–"+fT(x.despues.t_in):""):"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&x.antes.exc!==x.despues.exc?" · exceso "+(x.despues.exc?"marcado":"quitado"):""):(d.limit_hours!=null?"Límite "+d.limit_hours+" h":"");
         return "<tr><td class=num>"+fDT(x.at)+"</td><td>"+esc(x.usuario)+"</td><td>"+esc(TB[x.tabla]||x.tabla)+"</td><td>"+esc(AC[x.accion]||x.accion)+"</td><td>"+esc(txt)+"</td></tr>"}),false);
     }
-    ["hoyTbl","histTbl","perTbl","audTbl"].forEach(function(id){topScroll($(id))});
+    ["hoyTbl","histTbl","perTbl","audTbl","infTbl","infSum"].forEach(function(id){topScroll($(id))});
   }catch(e){fail(e)}
 }
 /* Barra de desplazamiento horizontal sobre la tabla, para no tener que bajar hasta el final de la lista. */
@@ -1233,6 +1284,96 @@ function topScroll(box){
   sizeTop(t);
 }
 window.addEventListener("resize",function(){document.querySelectorAll(".tbl-top").forEach(sizeTop)});
+/* ---------- Informe estadístico ---------- */
+var INF={rows:null,title:""};
+var toDateInput=function(t){var d=new Date(t);return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())};
+function setRango(k){
+  var n=new Date(),y=n.getFullYear(),m=n.getMonth(),d,h;
+  if(k==="mes"){d=new Date(y,m,1);h=n}
+  else if(k==="mesant"){d=new Date(y,m-1,1);h=new Date(y,m,0)}
+  else if(k==="anio"){d=new Date(y,0,1);h=n}
+  else{d=new Date(2020,0,1);h=n}
+  $("iDesde").value=toDateInput(d);$("iHasta").value=toDateInput(h);
+}
+function infRango(){
+  if(!$("iDesde").value||!$("iHasta").value)setRango("anio");
+  var a=$("iDesde").value.split("-"),b=$("iHasta").value.split("-");
+  return {since:new Date(+a[0],a[1]-1,+a[2]).getTime(),until:new Date(+b[0],b[1]-1,+b[2]+1).getTime()};
+}
+function agg(list){
+  var r={n:list.length,per:{n:0,min:0},com:{n:0,min:0},gre:{n:0,min:0},exc:0};
+  list.forEach(function(p){var g=r[p.motivo==="personal"?"per":p.motivo==="cometido"?"com":"gre"];g.n++;g.min+=dur(p);if(p.exc&&p.motivo==="personal")r.exc++});
+  return r;
+}
+function kpi(l,v,s,bad){return '<div class="kpi'+(bad?" bad":"")+'"><div class="l">'+l+'</div><div class="v">'+v+'</div><div class="s">'+(s||"&nbsp;")+"</div></div>"}
+var MESC=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+function chartMensual(list,r){
+  var from=new Date(r.since),to=new Date(r.until-1),first=list.length?new Date(Math.min.apply(null,list.map(function(p){return p.out}))):from;
+  if(first>from)from=new Date(first.getFullYear(),first.getMonth(),1);
+  var ms=[],y=from.getFullYear(),m=from.getMonth();
+  while((y<to.getFullYear()||(y===to.getFullYear()&&m<=to.getMonth()))&&ms.length<36){ms.push({y:y,m:m,min:0,n:0});m++;if(m>11){m=0;y++}}
+  ms=ms.slice(-12);
+  list.forEach(function(p){if(p.motivo!=="personal")return;var d=new Date(p.out);ms.forEach(function(x){if(x.y===d.getFullYear()&&x.m===d.getMonth()){x.min+=dur(p);x.n++}})});
+  var lim=limMin(),max=Math.max(lim,Math.max.apply(null,ms.map(function(x){return x.min}))||1),H=140,anyY=ms.length&&ms[0].y!==ms[ms.length-1].y;
+  var bars=ms.map(function(x){
+    var over=x.min>lim;
+    return '<div class="bar-col" title="'+MESC[x.m]+" "+x.y+": "+fM(x.min)+" en "+x.n+" permiso(s) personal(es)"+(over?" · excede el límite":"")+'">'+
+      '<div class="bv">'+(over?"▲ ":"")+(x.min?fM(x.min):"")+'</div><div class="b'+(over?" over":"")+'" style="height:'+Math.round(x.min/max*H)+'px"></div></div>'}).join("");
+  var lbl=ms.map(function(x){return "<span>"+MESC[x.m]+(anyY?" "+String(x.y).slice(2):"")+"</span>"}).join("");
+  return '<div class="bars">'+bars+'<div class="limit" style="bottom:'+Math.round(lim/max*H)+'px"><span>Límite '+fM(lim)+'</span></div></div><div class="bar-lbl">'+lbl+"</div>";
+}
+function chartSemana(list){
+  var DS=["Lun","Mar","Mié","Jue","Vie"],c=[0,0,0,0,0];
+  list.forEach(function(p){var d=new Date(p.out).getDay();if(d>=1&&d<=5)c[d-1]++});
+  var max=Math.max.apply(null,c)||1;
+  return c.map(function(v,i){return '<div class="hrow" title="'+DS[i]+": "+v+' permiso(s)"><span>'+DS[i]+'</span><div class="trk"><i style="width:'+Math.round(v/max*100)+'%"></i></div><b>'+v+"</b></div>"}).join("");
+}
+async function renderInforme(){
+  var sel=$("iEmp"),prev=sel.value,st=await DB.staffAll();
+  var r=infRango(),rut=prev,out=$("infOut");
+  var q={since:r.since,until:r.until};if(rut)q.rut=rut;
+  var list=await DB.perms(q);
+  var opts={};st.forEach(function(x){opts[x.rut]=x});
+  list.forEach(function(p){if(!opts[p.rut])opts[p.rut]={rut:p.rut,nombre:p.nombre,cargo:p.cargo}});
+  var arr=Object.keys(opts).map(function(k){return opts[k]}).sort(function(a,b){return a.nombre.localeCompare(b.nombre,"es")});
+  sel.innerHTML='<option value="">Todos (resumen general)</option>'+arr.map(function(x){return '<option value="'+esc(x.rut)+'">'+esc(x.nombre)+" · "+esc(fmtRut(x.rut))+"</option>"}).join("");
+  sel.value=opts[prev]?prev:"";rut=sel.value;
+  if(rut&&!q.rut){list=list.filter(function(p){return p.rut===rut})}
+  var rango=fD(r.since)+" a "+fD(r.until-1);
+  if(!rut){
+    /* Resumen general: una fila por funcionario */
+    var by={};arr.forEach(function(x){by[x.rut]=[]});list.forEach(function(p){(by[p.rut]=by[p.rut]||[]).push(p)});
+    var rows=arr.map(function(x){var a=agg(by[x.rut]||[]);return {x:x,a:a}}).sort(function(a,b){return b.a.per.min-a.a.per.min||a.x.nombre.localeCompare(b.x.nombre,"es")});
+    var T=agg(list);
+    out.innerHTML='<div class="kpis">'+kpi("Permisos",T.n,"en el período")+kpi("Descontado (personales)",fM(T.per.min),T.per.n+" permiso(s) personal(es)")+kpi("Cometidos",fM(T.com.min),T.com.n+" · no descuentan")+kpi("Horas gremiales",fM(T.gre.min),T.gre.n+" · no descuentan")+kpi("Veces excedido",T.exc,"permisos personales",T.exc>0)+'</div>'+
+      '<div class="sec"><h2>Resumen por funcionario</h2><p class="hint">Período: '+esc(rango)+'. Ordenado por tiempo descontado. Pulse un nombre para ver su historial.</p><div id="infSum">'+
+      table(["Funcionario","Cargo","Permisos","Personales","Descontado","Cometidos","H. gremiales","Excedió"],rows.map(function(o){var a=o.a;return "<tr><td><button class=\"lnk\" data-emp=\""+esc(o.x.rut)+"\">"+esc(o.x.nombre)+"</button><br><small>"+esc(fmtRut(o.x.rut))+"</small></td><td>"+esc(o.x.cargo||"")+"</td><td class=num>"+a.n+"</td><td class=num>"+a.per.n+"</td><td class=num>"+fM(a.per.min)+"</td><td class=num>"+a.com.n+" · "+fM(a.com.min)+"</td><td class=num>"+a.gre.n+" · "+fM(a.gre.min)+"</td><td class=num>"+(a.exc||"")+"</td></tr>"}),false)+"</div></div>";
+    INF.title="Resumen general";
+    INF.rows=rows.map(function(o){var a=o.a;return {RUT:fmtRut(o.x.rut),Nombre:o.x.nombre,Cargo:o.x.cargo||"","Permisos":a.n,"Personales (n)":a.per.n,"Descontado (min)":a.per.min,"Cometidos (n)":a.com.n,"Cometidos (min)":a.com.min,"H. gremiales (n)":a.gre.n,"H. gremiales (min)":a.gre.min,"Veces excedido":a.exc}});
+    out.querySelectorAll("[data-emp]").forEach(function(b){b.onclick=function(){$("iEmp").value=b.dataset.emp;renderAdmin()}});
+    return;
+  }
+  /* Informe individual */
+  var emp=opts[rut],a=agg(list),mesPs=await DB.perms({rut:rut,since:monthStart(Date.now())}),uso=usedMin(mesPs,rut),lim=limMin();
+  var prom=a.per.n?Math.round(a.per.min/a.per.n):0;
+  var hist=list.slice().sort(function(x,y){return y.out-x.out});
+  out.innerHTML='<div class="sec"><h2>'+esc(emp.nombre)+'</h2><p class="hint" style="margin:0">'+esc(fmtRut(emp.rut))+(emp.cargo?" · "+esc(emp.cargo):"")+(emp.area?" · "+esc(emp.area):"")+" · Período: "+esc(rango)+"</p></div>"+
+    '<div class="kpis">'+kpi("Permisos",a.n,"en el período")+kpi("Descontado (personales)",fM(a.per.min),a.per.n+" permiso(s) personal(es)")+kpi("Promedio personal",a.per.n?fM(prom):"–","por permiso personal")+kpi("Cometidos",fM(a.com.min),a.com.n+" · no descuentan")+kpi("Horas gremiales",fM(a.gre.min),a.gre.n+" · no descuentan")+kpi("Veces excedido",a.exc,"permisos personales",a.exc>0)+kpi("Mes actual",fM(uso),"de "+fM(lim)+" autorizadas",uso>=lim)+'</div>'+
+    '<div class="cols"><div class="sec"><h2>Permisos personales por mes</h2><p class="hint">Tiempo descontado cada mes. La línea punteada es el límite mensual; las barras rojas (▲) lo superan.</p>'+chartMensual(list,r)+'</div>'+
+    '<div class="sec"><h2>Permisos por día de la semana</h2>'+chartSemana(list)+"</div></div>"+
+    '<div class="sec"><h2>Historial ('+hist.length+')</h2><div id="infTbl">'+
+    table(["Fecha","Motivo","Salida","Regreso","Duración","Descuenta","Detalle"],hist.map(function(p){return "<tr><td class=num>"+fD(p.out)+"</td><td>"+pill(p)+"</td><td class=num>"+fT(p.out)+"</td><td class=num>"+regresoCell(p)+"</td><td class=num>"+fM(dur(p))+"</td><td>"+(p.motivo==="personal"?"Sí":"No")+(p.exc&&p.motivo==="personal"?' <span class="pill p-exc">Excede</span>':"")+"</td><td>"+esc(p.destino?p.destino+(p.tarea?" — "+p.tarea:""):p.detalle)+(p.auth?" <small>(autorizó: "+esc(p.auth)+")</small>":"")+"</td></tr>"}),false)+"</div></div>";
+  INF.title=emp.nombre;
+  INF.rows=hist.map(function(p){return {Fecha:fD(p.out),Motivo:MOT[p.motivo],Salida:fT(p.out),Regreso:p.in&&!p.cierreAuto?fT(p.in):"",Cierre:p.cierreAuto?"Automático (sin regreso)":"","Minutos":dur(p),Descuenta:p.motivo==="personal"?"Sí":"No",Excede:p.exc&&p.motivo==="personal"?"Sí":"",Destino:p.destino||"",Detalle:p.tarea||p.detalle||"",Autoriza:p.auth||""}});
+  INF.resumen=[{Concepto:"Funcionario",Valor:emp.nombre},{Concepto:"RUT",Valor:fmtRut(emp.rut)},{Concepto:"Período",Valor:rango},{Concepto:"Permisos",Valor:a.n},{Concepto:"Descontado personales (min)",Valor:a.per.min},{Concepto:"Permisos personales",Valor:a.per.n},{Concepto:"Cometidos (min)",Valor:a.com.min},{Concepto:"Cometidos (n)",Valor:a.com.n},{Concepto:"Horas gremiales (min)",Valor:a.gre.min},{Concepto:"Horas gremiales (n)",Valor:a.gre.n},{Concepto:"Veces excedido",Valor:a.exc}];
+}
+function exportInforme(){
+  if(!INF.rows){return}
+  var wb=XLSX.utils.book_new();
+  if(INF.resumen)XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(INF.resumen),"Resumen");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(INF.rows),INF.resumen?"Historial":"Resumen general");
+  XLSX.writeFile(wb,"informe_"+INF.title.replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]+/g,"_")+".xlsx");
+}
 function note(el,t,cls){el.hidden=false;el.className="note "+(cls||"");el.textContent=t}
 function staffRow(r){
   var c=cleanRut(r.rut);if(!rutOk(c)||!String(r.nombre||"").trim())return null;
@@ -1322,6 +1463,9 @@ function bind(){
   document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});
   ["hMes","hQ","hMot"].forEach(function(i){$(i).addEventListener("input",renderAdmin)});
   $("hXls").onclick=exportXls;
+  ["iEmp","iDesde","iHasta"].forEach(function(i){$(i).addEventListener("change",renderAdmin)});
+  document.querySelectorAll("[data-rango]").forEach(function(b){b.onclick=function(){setRango(b.dataset.rango);renderAdmin()}});
+  $("iXls").onclick=exportInforme;$("iPrint").onclick=function(){window.print()};
   $("eMot").addEventListener("change",function(){$("eCom").hidden=$("eMot").value!=="cometido"});
   $("eCancel").onclick=closeEdit;
   $("editForm").addEventListener("submit",function(e){e.preventDefault();saveEdit()});
