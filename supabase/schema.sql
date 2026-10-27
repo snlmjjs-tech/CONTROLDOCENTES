@@ -68,12 +68,17 @@ create or replace function public.es_inspector() returns boolean
 language sql stable security definer set search_path = public as
 $$ select exists (select 1 from public.usuarios where user_id = auth.uid() and rol = 'inspector') $$;
 
--- La hora de regreso la fija siempre el servidor (no el reloj del kiosco).
--- Excepción: el cierre automático de un permiso sin regreso (cierre_auto) trae
--- la hora de término de la jornada, que se acepta si está entre la salida y ahora.
+-- Hora de salida/regreso: para el kiosco la fija el servidor (no el reloj del kiosco).
+-- Los inspectores pueden corregir fecha y horas desde Administración (se valida y queda en la auditoría).
 create or replace function public.fijar_regreso() returns trigger
 language plpgsql as $$
 begin
+  if public.es_inspector() then
+    if new.t_in is not null and new.t_in < new.t_out then raise exception 'El regreso no puede ser anterior a la salida'; end if;
+    if new.t_out > now() + interval '5 minutes' then raise exception 'La salida no puede estar en el futuro'; end if;
+    if new.t_in is not null and new.t_in > now() + interval '5 minutes' then raise exception 'El regreso no puede estar en el futuro'; end if;
+    return new;
+  end if;
   new.t_out := old.t_out;
   if old.t_in is not null then
     new.t_in := old.t_in; new.cierre_auto := old.cierre_auto;
@@ -187,6 +192,30 @@ alter table public.perms add column if not exists cierre_auto boolean not null d
 create or replace function public.fijar_regreso() returns trigger
 language plpgsql as $$
 begin
+  new.t_out := old.t_out;
+  if old.t_in is not null then
+    new.t_in := old.t_in; new.cierre_auto := old.cierre_auto;
+  elsif new.t_in is not null then
+    if new.cierre_auto then new.t_in := least(greatest(new.t_in, old.t_out), now());
+    else new.t_in := now(); new.cierre_auto := false; end if;
+  end if;
+  return new;
+end $$;
+
+-- =====================================================================
+-- Migración: los inspectores pueden corregir fecha y horas de un permiso.
+-- =====================================================================
+-- Hora de salida/regreso: para el kiosco la fija el servidor (no el reloj del kiosco).
+-- Los inspectores pueden corregir fecha y horas desde Administración (se valida y queda en la auditoría).
+create or replace function public.fijar_regreso() returns trigger
+language plpgsql as $$
+begin
+  if public.es_inspector() then
+    if new.t_in is not null and new.t_in < new.t_out then raise exception 'El regreso no puede ser anterior a la salida'; end if;
+    if new.t_out > now() + interval '5 minutes' then raise exception 'La salida no puede estar en el futuro'; end if;
+    if new.t_in is not null and new.t_in > now() + interval '5 minutes' then raise exception 'El regreso no puede estar en el futuro'; end if;
+    return new;
+  end if;
   new.t_out := old.t_out;
   if old.t_in is not null then
     new.t_in := old.t_in; new.cierre_auto := old.cierre_auto;

@@ -756,6 +756,8 @@ textarea.in{min-height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;fo
   <form class="mcard" id="editForm">
     <h3>Editar permiso</h3>
     <p id="eWho" style="margin:0;color:var(--muted)"></p>
+    <div class="fld"><label for="eOut">Salida (fecha y hora)</label><input class="in" type="datetime-local" id="eOut" required></div>
+    <div class="fld"><label for="eIn">Regreso (fecha y hora)</label><input class="in" type="datetime-local" id="eIn"><small id="eInHint" style="color:var(--muted)"></small></div>
     <div class="fld"><label for="eMot">Motivo</label><select class="in" id="eMot"><option value="personal">Personal</option><option value="cometido">Cometido laboral</option><option value="gremial">Horas gremiales</option></select></div>
     <div class="fld"><label for="eDet">Detalle</label><input class="in" id="eDet" maxlength="120"></div>
     <div id="eCom" hidden>
@@ -930,7 +932,7 @@ var DB={
     return out.map(rowToPerm);
   },
   permAdd:async function(p){return rowToPerm(await ok(C.from("perms").insert(permToRow(p)).select().single()))},
-  permSave:async function(p){return rowToPerm(await ok(C.from("perms").update(permToRow(p)).eq("id",p.id).select().single()))},
+  permSave:async function(p,conHoras){var row=permToRow(p);if(conHoras)row.t_out=new Date(p.out).toISOString();return rowToPerm(await ok(C.from("perms").update(row).eq("id",p.id).select().single()))},
   permDel:function(id){return ok(C.from("perms").delete().eq("id",id))},
   cfg:async function(){var r=await ok(C.from("settings").select("limit_hours").eq("id",1).maybeSingle());if(r)CFG.limit=Number(r.limit_hours)},
   cfgSave:function(h){return ok(C.from("settings").update({limit_hours:h}).eq("id",1))},
@@ -1124,26 +1126,43 @@ function bindRows(root){
   root.querySelectorAll("[data-del]").forEach(function(b){armBtn(b,async function(){try{await DB.permDel(+b.dataset.del);renderAdmin()}catch(e){fail(e)}})});
 }
 var editP=null;
+function toLocalInput(t){var d=new Date(t);return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+"T"+pad2(d.getHours())+":"+pad2(d.getMinutes())}
+function fromLocalInput(v,orig){
+  if(!v)return null;var t=new Date(v).getTime();
+  /* si no se tocó (mismo minuto), se conserva el valor original con sus segundos */
+  return orig!=null&&Math.floor(t/60000)===Math.floor(orig/60000)?orig:t;
+}
 function openEdit(p){
   if(!p)return;editP=p;
   $("eWho").textContent=p.nombre+" · "+fDT(p.out);
+  $("eOut").value=toLocalInput(p.out);$("eIn").value=p.in?toLocalInput(p.in):"";
+  $("eInHint").textContent=p.in?"":"Déjelo vacío si la persona aún no regresa.";
   $("eMot").value=p.motivo;$("eDet").value=p.detalle||"";$("eDes").value=p.destino||"";$("eTar").value=p.tarea||"";
   $("eCom").hidden=p.motivo!=="cometido";$("eErr").hidden=true;$("eOk").disabled=false;
   $("editModal").hidden=false;setTimeout(function(){$("eMot").focus()},30);
 }
 function closeEdit(){$("editModal").hidden=true;editP=null}
 async function saveEdit(){
-  var m=$("eMot").value,des=$("eDes").value.trim(),tar=$("eTar").value.trim();
-  if(m==="cometido"&&(!des||!tar)){note($("eErr"),"Para un cometido laboral indique destino y objetivo.","bad");return}
-  var old=editP,np=Object.assign({},old,{motivo:m,detalle:$("eDet").value.trim(),destino:m==="cometido"?des:"",tarea:m==="cometido"?tar:"",vuelta:m==="cometido"?old.vuelta:""});
+  var m=$("eMot").value,des=$("eDes").value.trim(),tar=$("eTar").value.trim(),old=editP,ahora=Date.now()+5*60000;
+  var out=fromLocalInput($("eOut").value,old.out),inn=fromLocalInput($("eIn").value,old.in);
+  var bad=null;
+  if(out==null||isNaN(out))bad="Indique la fecha y hora de salida.";
+  else if(old.in&&inn==null)bad="Indique la fecha y hora de regreso.";
+  else if(out>ahora)bad="La salida no puede estar en el futuro.";
+  else if(inn!=null&&inn<out)bad="El regreso no puede ser anterior a la salida.";
+  else if(inn!=null&&inn>ahora)bad="El regreso no puede estar en el futuro.";
+  else if(m==="cometido"&&(!des||!tar))bad="Para un cometido laboral indique destino y objetivo.";
+  if(bad){note($("eErr"),bad,"bad");return}
+  var horasCambiaron=out!==old.out||inn!==old.in;
+  var np=Object.assign({},old,{out:out,in:inn,cierreAuto:inn!==old.in?false:old.cierreAuto,motivo:m,detalle:$("eDet").value.trim(),destino:m==="cometido"?des:"",tarea:m==="cometido"?tar:"",vuelta:m==="cometido"?old.vuelta:""});
   $("eOk").disabled=true;
   try{
-    var saved=await DB.permSave(np);
-    if(saved.in&&old.motivo!==m){
-      /* El exceso depende de si el permiso cuenta para el tiempo mensual. */
-      var exc=saved.exc;
-      if(m==="gremial")exc=false;
-      else if(old.motivo==="gremial"){var ps=await DB.perms({rut:saved.rut,since:monthStart(saved.out)});exc=usedMin(ps,saved.rut,saved.out)>limMin()}
+    var saved=await DB.permSave(np,true);
+    var cambioGremial=old.motivo!==m&&(old.motivo==="gremial"||m==="gremial");
+    if(saved.in&&(horasCambiaron||cambioGremial)){
+      /* El exceso depende de cuánto cuenta el permiso en el mes. */
+      var exc=false;
+      if(m!=="gremial"){var ps=await DB.perms({rut:saved.rut,since:monthStart(saved.out)});exc=usedMin(ps,saved.rut,saved.out)>limMin()}
       if(exc!==saved.exc){saved.exc=exc;saved=await DB.permSave(saved)}
     }
     closeEdit();renderAdmin();
@@ -1191,7 +1210,7 @@ async function renderAdmin(){
       var a=await DB.audit();if(tab!==t)return;
       var AC={INSERT:"Alta",UPDATE:"Cambio",DELETE:"Eliminación",CAMBIO_CLAVE:"Cambio de contraseña"},TB={perms:"Permiso",staff:"Funcionario",settings:"Parámetros",usuarios:"Cuenta"};
       $("audTbl").innerHTML=table(["Fecha","Usuario","Tabla","Acción","Detalle"],a.map(function(x){
-        var d=x.despues||x.antes||{},txt=d.nombre?d.nombre+(d.motivo?" · "+(MOT[d.motivo]||d.motivo):"")+(x.accion==="UPDATE"&&x.despues&&x.despues.t_in&&x.antes&&!x.antes.t_in?" · regreso":"")+(x.accion==="UPDATE"&&d.activo===false?" · dado de baja":"")+(x.accion==="UPDATE"&&x.despues&&x.despues.cierre_auto&&!(x.antes&&x.antes.cierre_auto)?" · cierre automático":"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&(x.antes.motivo!==x.despues.motivo||x.antes.detalle!==x.despues.detalle||x.antes.destino!==x.despues.destino||x.antes.tarea!==x.despues.tarea)?" · editado"+(x.antes.motivo!==x.despues.motivo?": "+(MOT[x.antes.motivo]||x.antes.motivo)+" → "+(MOT[x.despues.motivo]||x.despues.motivo):"")+(x.antes.detalle!==x.despues.detalle?" (detalle: «"+(x.antes.detalle||"")+"» → «"+(x.despues.detalle||"")+"»)":""):"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&x.antes.exc!==x.despues.exc?" · exceso "+(x.despues.exc?"marcado":"quitado"):""):(d.limit_hours!=null?"Límite "+d.limit_hours+" h":"");
+        var d=x.despues||x.antes||{},txt=d.nombre?d.nombre+(d.motivo?" · "+(MOT[d.motivo]||d.motivo):"")+(x.accion==="UPDATE"&&x.despues&&x.despues.t_in&&x.antes&&!x.antes.t_in?" · regreso":"")+(x.accion==="UPDATE"&&d.activo===false?" · dado de baja":"")+(x.accion==="UPDATE"&&x.despues&&x.despues.cierre_auto&&!(x.antes&&x.antes.cierre_auto)?" · cierre automático":"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&(x.antes.motivo!==x.despues.motivo||x.antes.detalle!==x.despues.detalle||x.antes.destino!==x.despues.destino||x.antes.tarea!==x.despues.tarea)?" · editado"+(x.antes.motivo!==x.despues.motivo?": "+(MOT[x.antes.motivo]||x.antes.motivo)+" → "+(MOT[x.despues.motivo]||x.despues.motivo):"")+(x.antes.detalle!==x.despues.detalle?" (detalle: «"+(x.antes.detalle||"")+"» → «"+(x.despues.detalle||"")+"»)":""):"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&(x.antes.t_out!==x.despues.t_out||(x.antes.t_in&&x.antes.t_in!==x.despues.t_in))?" · horario corregido: "+fDT(x.antes.t_out)+(x.antes.t_in?"–"+fT(x.antes.t_in):"")+" → "+fDT(x.despues.t_out)+(x.despues.t_in?"–"+fT(x.despues.t_in):""):"")+(x.tabla==="perms"&&x.accion==="UPDATE"&&x.antes&&x.despues&&x.antes.exc!==x.despues.exc?" · exceso "+(x.despues.exc?"marcado":"quitado"):""):(d.limit_hours!=null?"Límite "+d.limit_hours+" h":"");
         return "<tr><td class=num>"+fDT(x.at)+"</td><td>"+esc(x.usuario)+"</td><td>"+esc(TB[x.tabla]||x.tabla)+"</td><td>"+esc(AC[x.accion]||x.accion)+"</td><td>"+esc(txt)+"</td></tr>"}),false);
     }
   }catch(e){fail(e)}
