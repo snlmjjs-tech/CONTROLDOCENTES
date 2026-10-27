@@ -590,6 +590,10 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .hrow .trk{height:12px;background:var(--chip);border-radius:0 4px 4px 0;overflow:hidden}
 .hrow .trk i{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
 .hrow b{text-align:right;font-variant-numeric:tabular-nums}
+.hrow.rk{grid-template-columns:minmax(120px,260px) 1fr 80px}
+.hrow.rk span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lnk.srt{text-decoration:none;font-weight:700;color:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer}
+.lnk.srt:hover{text-decoration:underline}
 .lnk{color:var(--accent);cursor:pointer;text-decoration:underline;background:none;border:0;font:inherit;padding:0}
 @media print{
   body{background:#fff}
@@ -1285,7 +1289,7 @@ function topScroll(box){
 }
 window.addEventListener("resize",function(){document.querySelectorAll(".tbl-top").forEach(sizeTop)});
 /* ---------- Informe estadístico ---------- */
-var INF={rows:null,title:""};
+var INF={rows:null,title:"",sort:{k:"n",dir:-1}};
 var toDateInput=function(t){var d=new Date(t);return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())};
 function setRango(k){
   var n=new Date(),y=n.getFullYear(),m=n.getMonth(),d,h;
@@ -1341,16 +1345,37 @@ async function renderInforme(){
   if(rut&&!q.rut){list=list.filter(function(p){return p.rut===rut})}
   var rango=fD(r.since)+" a "+fD(r.until-1);
   if(!rut){
-    /* Resumen general: una fila por funcionario */
+    /* Resumen general: una fila por funcionario, con ranking ordenable */
     var by={};arr.forEach(function(x){by[x.rut]=[]});list.forEach(function(p){(by[p.rut]=by[p.rut]||[]).push(p)});
-    var rows=arr.map(function(x){var a=agg(by[x.rut]||[]);return {x:x,a:a}}).sort(function(a,b){return b.a.per.min-a.a.per.min||a.x.nombre.localeCompare(b.x.nombre,"es")});
+    var all=arr.map(function(x){return {x:x,a:agg(by[x.rut]||[])}});
+    var K={
+      nombre:{l:"Funcionario",v:function(o){return o.x.nombre}},
+      n:{l:"Permisos",v:function(o){return o.a.n},f:function(v){return v+""}},
+      per_n:{l:"Personales",v:function(o){return o.a.per.n},f:function(v){return v+""}},
+      per_min:{l:"Tiempo descontado",v:function(o){return o.a.per.min},f:fM},
+      com_min:{l:"Tiempo en cometidos",v:function(o){return o.a.com.min},f:fM},
+      gre_min:{l:"Tiempo en horas gremiales",v:function(o){return o.a.gre.min},f:fM},
+      exc:{l:"Veces excedido",v:function(o){return o.a.exc},f:function(v){return v+""}}
+    };
+    var sk=K[INF.sort.k]?INF.sort.k:"n",dir=INF.sort.dir;
+    var rows=all.slice().sort(function(a,b){
+      var va=K[sk].v(a),vb=K[sk].v(b),c=typeof va==="string"?va.localeCompare(vb,"es"):va-vb;
+      return (c*dir)||(b.a.n-a.a.n)||a.x.nombre.localeCompare(b.x.nombre,"es")});
     var T=agg(list);
+    var th=function(k,t){return '<button class="lnk srt" data-sort="'+k+'">'+t+(sk===k?(dir<0?" ▼":" ▲"):" ↕")+"</button>"};
+    /* Ranking: los 10 con más (según la columna elegida) */
+    var rk=sk==="nombre"?"n":sk,top=all.filter(function(o){return K[rk].v(o)>0}).sort(function(a,b){return K[rk].v(b)-K[rk].v(a)||a.x.nombre.localeCompare(b.x.nombre,"es")}).slice(0,10);
+    var mx=top.length?K[rk].v(top[0]):1;
+    var rkHtml=top.length?top.map(function(o,i){var v=K[rk].v(o);return '<div class="hrow rk" title="'+esc(o.x.nombre)+": "+K[rk].f(v)+'"><span>'+(i+1)+". "+esc(o.x.nombre)+'</span><div class="trk"><i style="width:'+Math.round(v/mx*100)+'%"></i></div><b>'+K[rk].f(v)+"</b></div>"}).join(""):'<div class="empty">Sin permisos en el período.</div>';
     out.innerHTML='<div class="kpis">'+kpi("Permisos",T.n,"en el período")+kpi("Descontado (personales)",fM(T.per.min),T.per.n+" permiso(s) personal(es)")+kpi("Cometidos",fM(T.com.min),T.com.n+" · no descuentan")+kpi("Horas gremiales",fM(T.gre.min),T.gre.n+" · no descuentan")+kpi("Veces excedido",T.exc,"permisos personales",T.exc>0)+'</div>'+
-      '<div class="sec"><h2>Resumen por funcionario</h2><p class="hint">Período: '+esc(rango)+'. Ordenado por tiempo descontado. Pulse un nombre para ver su historial.</p><div id="infSum">'+
-      table(["Funcionario","Cargo","Permisos","Personales","Descontado","Cometidos","H. gremiales","Excedió"],rows.map(function(o){var a=o.a;return "<tr><td><button class=\"lnk\" data-emp=\""+esc(o.x.rut)+"\">"+esc(o.x.nombre)+"</button><br><small>"+esc(fmtRut(o.x.rut))+"</small></td><td>"+esc(o.x.cargo||"")+"</td><td class=num>"+a.n+"</td><td class=num>"+a.per.n+"</td><td class=num>"+fM(a.per.min)+"</td><td class=num>"+a.com.n+" · "+fM(a.com.min)+"</td><td class=num>"+a.gre.n+" · "+fM(a.gre.min)+"</td><td class=num>"+(a.exc||"")+"</td></tr>"}),false)+"</div></div>";
+      '<div class="sec"><h2>Ranking: '+esc(K[rk].l)+'</h2><p class="hint">Los 10 funcionarios con más. Cambia según la columna por la que ordene la tabla de abajo.</p>'+rkHtml+'</div>'+
+      '<div class="sec"><h2>Resumen por funcionario</h2><p class="hint">Período: '+esc(rango)+'. Pulse el título de una columna para ordenar de mayor a menor (otro clic invierte el orden). Pulse un nombre para ver su historial.</p><div id="infSum">'+
+      table(["#",th("nombre","Funcionario"),"Cargo",th("n","Permisos"),th("per_n","Personales"),th("per_min","Descontado"),th("com_min","Cometidos"),th("gre_min","H. gremiales"),th("exc","Excedió")],rows.map(function(o,i){var a=o.a;return "<tr><td class=num>"+(i+1)+"</td><td><button class=\"lnk\" data-emp=\""+esc(o.x.rut)+"\">"+esc(o.x.nombre)+"</button><br><small>"+esc(fmtRut(o.x.rut))+"</small></td><td>"+esc(o.x.cargo||"")+"</td><td class=num>"+a.n+"</td><td class=num>"+a.per.n+"</td><td class=num>"+fM(a.per.min)+"</td><td class=num>"+a.com.n+" · "+fM(a.com.min)+"</td><td class=num>"+a.gre.n+" · "+fM(a.gre.min)+"</td><td class=num>"+(a.exc||"")+"</td></tr>"}),false)+"</div></div>";
     INF.title="Resumen general";
-    INF.rows=rows.map(function(o){var a=o.a;return {RUT:fmtRut(o.x.rut),Nombre:o.x.nombre,Cargo:o.x.cargo||"","Permisos":a.n,"Personales (n)":a.per.n,"Descontado (min)":a.per.min,"Cometidos (n)":a.com.n,"Cometidos (min)":a.com.min,"H. gremiales (n)":a.gre.n,"H. gremiales (min)":a.gre.min,"Veces excedido":a.exc}});
+    INF.rows=rows.map(function(o,i){var a=o.a;return {"#":i+1,RUT:fmtRut(o.x.rut),Nombre:o.x.nombre,Cargo:o.x.cargo||"","Permisos":a.n,"Personales (n)":a.per.n,"Descontado (min)":a.per.min,"Cometidos (n)":a.com.n,"Cometidos (min)":a.com.min,"H. gremiales (n)":a.gre.n,"H. gremiales (min)":a.gre.min,"Veces excedido":a.exc}});
+    INF.resumen=null;
     out.querySelectorAll("[data-emp]").forEach(function(b){b.onclick=function(){$("iEmp").value=b.dataset.emp;renderAdmin()}});
+    out.querySelectorAll("[data-sort]").forEach(function(b){b.onclick=function(){var k=b.dataset.sort;INF.sort=INF.sort.k===k?{k:k,dir:-INF.sort.dir}:{k:k,dir:k==="nombre"?1:-1};renderAdmin()}});
     return;
   }
   /* Informe individual */
