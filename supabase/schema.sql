@@ -74,7 +74,8 @@ create or replace function public.fijar_regreso() returns trigger
 language plpgsql as $$
 begin
   if public.es_inspector() then
-    if new.t_in is not null and new.t_in < new.t_out then raise exception 'El regreso no puede ser anterior a la salida'; end if;
+    if new.t_in is not null and new.cierre_auto and old.t_in is null then new.t_in := least(greatest(new.t_in, new.t_out), now()); end if;
+    if new.t_in is not null and new.t_in < new.t_out - interval '1 second' then raise exception 'El regreso no puede ser anterior a la salida'; end if;
     if new.t_out > now() + interval '5 minutes' then raise exception 'La salida no puede estar en el futuro'; end if;
     if new.t_in is not null and new.t_in > now() + interval '5 minutes' then raise exception 'El regreso no puede estar en el futuro'; end if;
     return new;
@@ -211,7 +212,8 @@ create or replace function public.fijar_regreso() returns trigger
 language plpgsql as $$
 begin
   if public.es_inspector() then
-    if new.t_in is not null and new.t_in < new.t_out then raise exception 'El regreso no puede ser anterior a la salida'; end if;
+    if new.t_in is not null and new.cierre_auto and old.t_in is null then new.t_in := least(greatest(new.t_in, new.t_out), now()); end if;
+    if new.t_in is not null and new.t_in < new.t_out - interval '1 second' then raise exception 'El regreso no puede ser anterior a la salida'; end if;
     if new.t_out > now() + interval '5 minutes' then raise exception 'La salida no puede estar en el futuro'; end if;
     if new.t_in is not null and new.t_in > now() + interval '5 minutes' then raise exception 'El regreso no puede estar en el futuro'; end if;
     return new;
