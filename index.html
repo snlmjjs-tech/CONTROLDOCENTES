@@ -999,8 +999,10 @@ async function cerrarVencidos(list){
   var hoy=dayStart(Date.now()),n=0;
   for(var i=0;i<list.length;i++){
     var p=list[i];if(p.in||dayStart(p.out)>=hoy)continue;
-    var j=jornada(p.out);p.in=Math.max(p.out,j?j.fin:p.out);p.cierreAuto=true;
-    Object.assign(p,await DB.permSave(p));n++;
+    /* La base de datos guarda microsegundos y aquí solo hay milisegundos: el regreso debe quedar siempre
+       un poco después de la salida (si no, el servidor lo rechaza). Un fallo aquí no debe impedir mostrar la pantalla. */
+    var j=jornada(p.out);p.in=Math.max(p.out+1000,j?j.fin:0);p.cierreAuto=true;
+    try{Object.assign(p,await DB.permSave(p));n++}catch(e){p.in=null;p.cierreAuto=false;console.error("No se pudo cerrar el permiso "+p.id,e)}
   }
   return n;
 }
